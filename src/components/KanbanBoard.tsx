@@ -17,7 +17,7 @@ interface Idea {
   title: string;
   description: string;
   possible_outcome: string;
-  status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
+  status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
   created_at: string;
   responsible_id?: string;
@@ -30,10 +30,10 @@ interface KanbanBoardProps {
 }
 
 const COLUMNS = [
-  { id: 'inbox', title: 'Inbox', color: 'bg-accent/20', category: null },
-  { id: 'backlog', title: 'Business & Innovation', color: 'bg-primary/10', category: 'business' },
-  { id: 'backlog', title: 'Software Engineering', color: 'bg-primary/20', category: 'software' },
-  { id: 'backlog', title: 'Adoption & Outcomes', color: 'bg-accent/30', category: 'adoption' },
+  { id: 'inbox' as const, title: 'Inbox', color: 'bg-accent/20' },
+  { id: 'business_backlog' as const, title: 'Business & Innovation', color: 'bg-primary/10' },
+  { id: 'engineering_backlog' as const, title: 'Software Engineering', color: 'bg-primary/20' },
+  { id: 'outcomes_backlog' as const, title: 'Adoption & Outcomes', color: 'bg-accent/30' },
 ];
 
 export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
@@ -64,14 +64,11 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
   }, [ideas]);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {COLUMNS.map((column, idx) => {
-        const columnIdeas = ideas.filter((idea) => 
-          idea.status === column.id && 
-          (column.category === null || idea.category === column.category)
-        );
+      {COLUMNS.map((column) => {
+        const columnIdeas = ideas.filter((idea) => idea.status === column.id);
         
         return (
-          <div key={`${column.id}-${idx}`} className="space-y-3">
+          <div key={column.id} className="space-y-3">
             <div className={`rounded-lg p-3 ${column.color}`}>
               <h3 className="font-bold text-sm text-foreground">{column.title}</h3>
               <Badge variant="secondary" className="mt-1">

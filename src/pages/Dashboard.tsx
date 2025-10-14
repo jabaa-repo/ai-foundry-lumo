@@ -20,7 +20,7 @@ interface Idea {
   description: string;
   possible_outcome: string;
   owner_id: string | null;
-  status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
+  status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
   created_at: string;
 }

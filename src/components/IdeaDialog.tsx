@@ -16,7 +16,7 @@ interface Idea {
   title: string;
   description: string;
   possible_outcome: string;
-  status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
+  status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
 }
 
@@ -283,9 +283,9 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
                   <SelectItem value="inbox">Inbox</SelectItem>
-                  <SelectItem value="triaged">Triaged</SelectItem>
-                  <SelectItem value="backlog">Backlog</SelectItem>
-                  <SelectItem value="moved">Moved</SelectItem>
+                  <SelectItem value="business_backlog">Business & Innovation</SelectItem>
+                  <SelectItem value="engineering_backlog">Software Engineering</SelectItem>
+                  <SelectItem value="outcomes_backlog">Adoption & Outcomes</SelectItem>
                   <SelectItem value="archived">Archived</SelectItem>
                 </SelectContent>
               </Select>
