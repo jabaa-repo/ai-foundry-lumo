@@ -116,10 +116,13 @@ export type Database = {
       }
       ideas: {
         Row: {
+          category: string | null
           created_at: string
           description: string
           id: string
+          idea_id: string | null
           owner: string | null
+          owner_id: string | null
           possible_outcome: string
           status: Database["public"]["Enums"]["idea_status"]
           title: string
@@ -127,10 +130,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string | null
           created_at?: string
           description: string
           id?: string
+          idea_id?: string | null
           owner?: string | null
+          owner_id?: string | null
           possible_outcome: string
           status?: Database["public"]["Enums"]["idea_status"]
           title: string
@@ -138,10 +144,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string | null
           created_at?: string
           description?: string
           id?: string
+          idea_id?: string | null
           owner?: string | null
+          owner_id?: string | null
           possible_outcome?: string
           status?: Database["public"]["Enums"]["idea_status"]
           title?: string
