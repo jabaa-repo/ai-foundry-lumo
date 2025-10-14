@@ -1,0 +1,102 @@
+import { useState } from "react";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Menu, 
+  Archive, 
+  FileText, 
+  ClipboardList, 
+  FlaskConical, 
+  Shield 
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+export default function MainMenu() {
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const menuItems = [
+    {
+      icon: Archive,
+      title: "View Archive",
+      description: "Access archived projects and ideas",
+      onClick: () => {
+        navigate("/projects");
+        setOpen(false);
+      }
+    },
+    {
+      icon: FileText,
+      title: "Prepare Review Meeting Pack",
+      description: "Generate comprehensive project review materials",
+      onClick: () => console.log("Review pack")
+    },
+    {
+      icon: ClipboardList,
+      title: "Full Project Log",
+      description: "View detailed project timeline and history",
+      onClick: () => {
+        navigate("/projects");
+        setOpen(false);
+      }
+    },
+    {
+      icon: FlaskConical,
+      title: "Experiment Backlog",
+      description: "Manage and track all experiments",
+      onClick: () => console.log("Experiments")
+    },
+    {
+      icon: Shield,
+      title: "Safety & Governance Checker",
+      description: "Review compliance and governance requirements",
+      onClick: () => console.log("Safety check")
+    },
+  ];
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-[400px] sm:w-[540px]">
+        <SheetHeader>
+          <SheetTitle className="text-primary">Additional Features</SheetTitle>
+          <SheetDescription>
+            Access advanced tools and utilities
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-6 space-y-4">
+          {menuItems.map((item, index) => (
+            <div key={index}>
+              <Button
+                variant="ghost"
+                className="w-full justify-start h-auto py-4 px-4"
+                onClick={item.onClick}
+              >
+                <div className="flex items-start gap-4 text-left">
+                  <item.icon className="h-5 w-5 mt-0.5 text-primary shrink-0" />
+                  <div>
+                    <p className="font-semibold">{item.title}</p>
+                    <p className="text-sm text-muted-foreground">{item.description}</p>
+                  </div>
+                </div>
+              </Button>
+              {index < menuItems.length - 1 && <Separator className="my-2" />}
+            </div>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

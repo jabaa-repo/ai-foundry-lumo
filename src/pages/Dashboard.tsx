@@ -9,6 +9,7 @@ import { LogOut, Plus } from "lucide-react";
 import KanbanBoard from "@/components/KanbanBoard";
 import AIChatZone from "@/components/AIChatZone";
 import IdeaDialog from "@/components/IdeaDialog";
+import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
 import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
 
@@ -110,12 +111,16 @@ export default function Dashboard() {
             <Badge variant="outline" className="border-primary text-primary font-semibold">
               Active Tasks: {activeTasks}
             </Badge>
-            <Avatar className="h-10 w-10 cursor-pointer ring-2 ring-primary/20" onClick={handleSignOut}>
+            <Avatar 
+              className="h-10 w-10 cursor-pointer ring-2 ring-primary/20" 
+              onClick={() => navigate("/my-tasks")}
+            >
               <AvatarImage src={avatarPlaceholder} alt="User avatar" />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {user?.email?.[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
+            <MainMenu />
             <Button
               variant="ghost"
               size="icon"
