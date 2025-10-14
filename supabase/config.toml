@@ -1,1 +1,4 @@
 project_id = "cbauhjpcmwivswpjidta"
+
+[functions.lumo-chat]
+verify_jwt = true

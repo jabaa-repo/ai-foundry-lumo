@@ -62,6 +62,17 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       return;
     }
 
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to use AI assistance",
+      });
+      return;
+    }
+
     setAiLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('lumo-chat', {
@@ -74,7 +85,10 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('AI assist error:', error);
+        throw error;
+      }
 
       // Parse the AI response and populate fields
       const response = data.response;

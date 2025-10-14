@@ -29,6 +29,17 @@ export default function AIChatZone() {
     const messageToSend = message || input;
     if (!messageToSend.trim()) return;
 
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to use LUMO chat",
+      });
+      return;
+    }
+
     setLoading(true);
     const userMessage: Message = { role: 'user', content: messageToSend };
     setMessages(prev => [...prev, userMessage]);
@@ -39,7 +50,10 @@ export default function AIChatZone() {
         body: { message: messageToSend }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
 
       const assistantMessage: Message = {
         role: 'assistant',
@@ -47,10 +61,11 @@ export default function AIChatZone() {
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error: any) {
+      console.error('Chat error:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to get response from LUMO",
+        description: error.message || "Failed to get response from LUMO. Please try again.",
       });
     } finally {
       setLoading(false);
