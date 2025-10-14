@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 interface Idea {
   id: string;
@@ -28,6 +28,7 @@ interface IdeaDialogProps {
 
 export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: IdeaDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [possibleOutcome, setPossibleOutcome] = useState("");
@@ -50,6 +51,57 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setCategory("");
     }
   }, [idea]);
+
+  const handleAIAssist = async () => {
+    if (!title.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a title first",
+      });
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('lumo-chat', {
+        body: { 
+          message: `Help me create a brief for this idea: "${title}". 
+          Provide: 
+          1. A detailed description (2-3 sentences)
+          2. A possible outcome or benefit (1-2 sentences)
+          Be supportive and encouraging in your tone.`
+        }
+      });
+
+      if (error) throw error;
+
+      // Parse the AI response and populate fields
+      const response = data.response;
+      
+      // Simple parsing - split response into description and outcome
+      const parts = response.split(/outcome|benefit/i);
+      if (parts.length >= 2) {
+        setDescription(parts[0].replace(/description:/i, '').trim());
+        setPossibleOutcome(parts[1].trim());
+      } else {
+        setDescription(response);
+      }
+
+      toast({
+        title: "AI Assistant",
+        description: "Brief generated successfully! Feel free to edit.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to get AI assistance",
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +183,28 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
               className="border-border"
             />
           </div>
+
+          {!idea && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleAIAssist}
+              disabled={aiLoading || !title.trim()}
+              className="w-full border-primary/50 hover:bg-primary/10"
+            >
+              {aiLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  AI is helping...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Get AI Help with Brief
+                </>
+              )}
+            </Button>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Description *</Label>

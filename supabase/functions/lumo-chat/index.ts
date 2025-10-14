@@ -15,9 +15,9 @@ serve(async (req) => {
   try {
     const { message } = await req.json();
     
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    if (!OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY is not configured');
     }
 
     // Get the authorization header from the request
@@ -36,6 +36,7 @@ serve(async (req) => {
     // Get user
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     if (userError || !user) {
+      console.error('Auth error:', userError);
       throw new Error('Unauthorized');
     }
 
@@ -80,24 +81,25 @@ Current user data:
 Be professional, concise, and proactive. Provide actionable insights and suggestions.
 `;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: contextMessage },
           { role: 'user', content: message }
         ],
+        temperature: 0.8,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('OpenAI API error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
@@ -105,15 +107,8 @@ Be professional, concise, and proactive. Provide actionable insights and suggest
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Payment required. Please add credits to your Lovable workspace.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
 
-      throw new Error('AI gateway error');
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
