@@ -309,12 +309,12 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             <div className="grid grid-cols-2 gap-4 mt-2">
               <div className="space-y-2">
                 <Label htmlFor="responsible">Responsible</Label>
-                <Select value={responsibleId} onValueChange={setResponsibleId}>
+                <Select value={responsibleId || "none"} onValueChange={(val) => setResponsibleId(val === "none" ? "" : val)}>
                   <SelectTrigger className="border-border">
                     <SelectValue placeholder="Select user..." />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.display_name || 'User'}
@@ -326,12 +326,12 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
 
               <div className="space-y-2">
                 <Label htmlFor="accountable">Accountable</Label>
-                <Select value={accountableId} onValueChange={setAccountableId}>
+                <Select value={accountableId || "none"} onValueChange={(val) => setAccountableId(val === "none" ? "" : val)}>
                   <SelectTrigger className="border-border">
                     <SelectValue placeholder="Select user..." />
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {users.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.display_name || 'User'}
