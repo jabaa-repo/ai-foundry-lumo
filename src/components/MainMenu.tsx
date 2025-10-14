@@ -7,6 +7,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -18,9 +19,11 @@ import {
   Shield 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ReportGenerator from "./ReportGenerator";
 
 export default function MainMenu() {
   const [open, setOpen] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   const navigate = useNavigate();
 
   const menuItems = [
@@ -35,9 +38,12 @@ export default function MainMenu() {
     },
     {
       icon: FileText,
-      title: "Prepare Review Meeting Pack",
-      description: "Generate comprehensive project review materials",
-      onClick: () => console.log("Review pack")
+      title: "Generate Report",
+      description: "Create progress summaries and analysis reports",
+      onClick: () => {
+        setShowReportDialog(true);
+        setOpen(false);
+      }
     },
     {
       icon: ClipboardList,
@@ -63,7 +69,8 @@ export default function MainMenu() {
   ];
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
+      <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon">
           <Menu className="h-5 w-5" />
@@ -98,5 +105,15 @@ export default function MainMenu() {
         </div>
       </SheetContent>
     </Sheet>
+
+    <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
+      <DialogContent className="sm:max-w-[700px] bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Report Generator</DialogTitle>
+        </DialogHeader>
+        <ReportGenerator />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

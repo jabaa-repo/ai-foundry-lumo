@@ -34,7 +34,26 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [possibleOutcome, setPossibleOutcome] = useState("");
   const [status, setStatus] = useState<string>("inbox");
   const [category, setCategory] = useState<string>("");
+  const [users, setUsers] = useState<any[]>([]);
+  const [responsibleId, setResponsibleId] = useState<string>("");
+  const [accountableId, setAccountableId] = useState<string>("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data } = await supabase.from('profiles').select('id, display_name');
+      if (data) setUsers(data);
+    };
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data } = await supabase.from('profiles').select('id, display_name');
+      if (data) setUsers(data);
+    };
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     if (idea) {
@@ -43,12 +62,16 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setPossibleOutcome(idea.possible_outcome);
       setStatus(idea.status);
       setCategory(idea.category || "");
+      setResponsibleId((idea as any).responsible_id || "");
+      setAccountableId((idea as any).accountable_id || "");
     } else {
       setTitle("");
       setDescription("");
       setPossibleOutcome("");
       setStatus("inbox");
       setCategory("");
+      setResponsibleId("");
+      setAccountableId("");
     }
   }, [idea]);
 
@@ -135,6 +158,8 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             possible_outcome: possibleOutcome,
             status: status as any,
             category: category || null,
+            responsible_id: responsibleId || null,
+            accountable_id: accountableId || null,
           })
           .eq('id', idea.id);
 
@@ -155,6 +180,8 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             status: status as any,
             category: category || null,
             owner_id: user.id,
+            responsible_id: responsibleId || null,
+            accountable_id: accountableId || null,
           } as any]);
 
         if (error) throw error;
@@ -274,6 +301,45 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
                   <SelectItem value="adoption">Adoption & Outcomes</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <Label className="text-sm font-semibold">RACI Assignment</Label>
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor="responsible">Responsible</Label>
+                <Select value={responsibleId} onValueChange={setResponsibleId}>
+                  <SelectTrigger className="border-border">
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="">None</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.display_name || 'User'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accountable">Accountable</Label>
+                <Select value={accountableId} onValueChange={setAccountableId}>
+                  <SelectTrigger className="border-border">
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="">None</SelectItem>
+                    {users.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.display_name || 'User'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 

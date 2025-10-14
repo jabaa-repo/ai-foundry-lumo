@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json();
+    const { message, role = 'project_manager' } = await req.json();
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
@@ -63,9 +63,25 @@ serve(async (req) => {
       .eq('owner_id', user.id)
       .limit(20);
 
-    // Build context for the AI
+    // Build context for the AI based on role
+    const rolePrompts: Record<string, string> = {
+      business_strategist: 'You are a Business Strategist consultant. Focus on strategic planning, business models, and value creation.',
+      technical_architect: 'You are a Technical Architect consultant. Focus on system design, infrastructure, and technical solutions.',
+      data_scientist: 'You are a Data Scientist consultant. Focus on data analysis, insights, and ML model development.',
+      ux_designer: 'You are a UX Designer consultant. Focus on user experience, interface design, and usability.',
+      product_manager: 'You are a Product Manager consultant. Focus on product strategy, roadmaps, and feature prioritization.',
+      ml_engineer: 'You are an ML Engineer consultant. Focus on ML model deployment, optimization, and production systems.',
+      quality_engineer: 'You are a Quality Engineer consultant. Focus on testing, quality assurance, and reliability.',
+      adoption_specialist: 'You are an Adoption Specialist consultant. Focus on change management, training, and user adoption.',
+      project_manager: 'You are a Project Manager and Report Writer. Focus on progress tracking, summaries, and actionable recommendations.',
+    };
+
+    const roleContext = rolePrompts[role] || rolePrompts.project_manager;
+    
     const contextMessage = `
-You are LUMO, an AI Chief of Staff assistant for project and task management. You help users manage their ideas, tasks, and projects.
+${roleContext}
+
+You are LUMO, an AI-Foundry assistant for project and task management. You help users manage their ideas, tasks, and projects.
 
 Current user data:
 - Ideas: ${ideas?.length || 0} total
@@ -85,7 +101,7 @@ Current user data:
   * Live: ${projects?.filter(p => p.status === 'live').length || 0}
   * Completed: ${projects?.filter(p => p.status === 'completed').length || 0}
 
-Be professional, concise, and proactive. Provide actionable insights and suggestions.
+Be professional, concise, and proactive. Provide actionable insights and recommendations based on your consultant role.
 `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

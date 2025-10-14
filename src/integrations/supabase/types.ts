@@ -116,42 +116,54 @@ export type Database = {
       }
       ideas: {
         Row: {
+          accountable_id: string | null
           category: string | null
+          consulted_ids: string[] | null
           created_at: string
           description: string
           id: string
           idea_id: string | null
+          informed_ids: string[] | null
           owner: string | null
           owner_id: string | null
           possible_outcome: string
+          responsible_id: string | null
           status: Database["public"]["Enums"]["idea_status"]
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          accountable_id?: string | null
           category?: string | null
+          consulted_ids?: string[] | null
           created_at?: string
           description: string
           id?: string
           idea_id?: string | null
+          informed_ids?: string[] | null
           owner?: string | null
           owner_id?: string | null
           possible_outcome: string
+          responsible_id?: string | null
           status?: Database["public"]["Enums"]["idea_status"]
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          accountable_id?: string | null
           category?: string | null
+          consulted_ids?: string[] | null
           created_at?: string
           description?: string
           id?: string
           idea_id?: string | null
+          informed_ids?: string[] | null
           owner?: string | null
           owner_id?: string | null
           possible_outcome?: string
+          responsible_id?: string | null
           status?: Database["public"]["Enums"]["idea_status"]
           title?: string
           updated_at?: string
@@ -185,33 +197,48 @@ export type Database = {
       }
       projects: {
         Row: {
+          accountable_id: string | null
+          consulted_ids: string[] | null
           created_at: string
           description: string | null
           id: string
+          informed_ids: string[] | null
           latest_update: string | null
+          owner_id: string | null
           primary_metric: number | null
+          responsible_id: string | null
           secondary_metrics: Json | null
           status: Database["public"]["Enums"]["project_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          accountable_id?: string | null
+          consulted_ids?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          informed_ids?: string[] | null
           latest_update?: string | null
+          owner_id?: string | null
           primary_metric?: number | null
+          responsible_id?: string | null
           secondary_metrics?: Json | null
           status?: Database["public"]["Enums"]["project_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          accountable_id?: string | null
+          consulted_ids?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          informed_ids?: string[] | null
           latest_update?: string | null
+          owner_id?: string | null
           primary_metric?: number | null
+          responsible_id?: string | null
           secondary_metrics?: Json | null
           status?: Database["public"]["Enums"]["project_status"]
           title?: string
@@ -227,6 +254,7 @@ export type Database = {
           due_date: string | null
           id: string
           idea_id: string | null
+          owner_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -238,6 +266,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           idea_id?: string | null
+          owner_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -249,6 +278,7 @@ export type Database = {
           due_date?: string | null
           id?: string
           idea_id?: string | null
+          owner_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string

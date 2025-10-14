@@ -1,6 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { CheckSquare, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+}
 
 interface Idea {
   id: string;
@@ -11,6 +20,8 @@ interface Idea {
   status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
   category: string | null;
   created_at: string;
+  responsible_id?: string;
+  accountable_id?: string;
 }
 
 interface KanbanBoardProps {
@@ -26,6 +37,31 @@ const COLUMNS = [
 ];
 
 export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
+  const [ideaTasks, setIdeaTasks] = useState<Record<string, Task[]>>({});
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('id, title, status, idea_id')
+        .in('idea_id', ideas.map(i => i.id));
+
+      if (tasks) {
+        const tasksByIdea: Record<string, Task[]> = {};
+        tasks.forEach(task => {
+          if (task.idea_id) {
+            if (!tasksByIdea[task.idea_id]) tasksByIdea[task.idea_id] = [];
+            tasksByIdea[task.idea_id].push(task as Task);
+          }
+        });
+        setIdeaTasks(tasksByIdea);
+      }
+    };
+
+    if (ideas.length > 0) {
+      fetchTasks();
+    }
+  }, [ideas]);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {COLUMNS.map((column, idx) => {
@@ -44,35 +80,52 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
             </div>
             
             <div className="space-y-3">
-              {columnIdeas.map((idea) => (
-                <Card
-                  key={idea.id}
-                  className="cursor-pointer hover:shadow-hover transition-all border-border bg-card"
-                  onClick={() => onIdeaClick(idea)}
-                >
-                  <CardHeader className="p-4 pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-sm font-semibold text-foreground line-clamp-2 flex-1">
-                        {idea.title}
-                      </CardTitle>
-                      <Badge variant="outline" className="text-xs shrink-0">
-                        {idea.idea_id}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0 space-y-2">
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {idea.description}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Progress value={Math.random() * 100} className="h-1.5" />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {Math.floor(Math.random() * 100)}%
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {columnIdeas.map((idea) => {
+                const tasks = ideaTasks[idea.id] || [];
+                const completedTasks = tasks.filter(t => t.status === 'done').length;
+                const progress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+                
+                return (
+                  <Card
+                    key={idea.id}
+                    className="cursor-pointer hover:shadow-hover transition-all border-border bg-card"
+                    onClick={() => onIdeaClick(idea)}
+                  >
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-sm font-semibold text-foreground line-clamp-2 flex-1">
+                          {idea.title}
+                        </CardTitle>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {idea.idea_id}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {idea.description}
+                      </p>
+                      
+                      {tasks.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <CheckSquare className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            {completedTasks}/{tasks.length} tasks
+                          </span>
+                          <Progress value={progress} className="h-1.5 flex-1" />
+                        </div>
+                      )}
+                      
+                      {(idea.responsible_id || idea.accountable_id) && (
+                        <div className="flex items-center gap-1 pt-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">RACI assigned</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         );
