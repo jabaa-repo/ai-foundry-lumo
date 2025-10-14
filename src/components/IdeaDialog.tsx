@@ -175,12 +175,12 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
 
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category || "none"} onValueChange={(val) => setCategory(val === "none" ? "" : val)}>
                 <SelectTrigger className="border-border">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   <SelectItem value="business">Business & Innovation</SelectItem>
                   <SelectItem value="software">Software Engineering</SelectItem>
                   <SelectItem value="adoption">Adoption & Outcomes</SelectItem>
