@@ -370,20 +370,31 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
                 disabled={loading}
                 className="bg-primary hover:bg-primary-hover text-primary-foreground"
               >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : idea ? (
-                "Update Idea"
-              ) : (
-                "Add Idea"
-              )}
-            </Button>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : idea ? (
+                  "Update Idea"
+                ) : (
+                  "Add Idea"
+                )}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>
+
+      <ConvertToProjectDialog
+        idea={idea}
+        open={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+        onSuccess={() => {
+          onSuccess();
+          onOpenChange(false);
+        }}
+      />
     </Dialog>
   );
 }
