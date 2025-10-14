@@ -181,6 +181,7 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             possible_outcome: possibleOutcome,
             status: status as any,
             category: category || null,
+            user_id: user.id,
             owner_id: user.id,
             responsible_id: responsibleId || null,
             accountable_id: accountableId || null,
