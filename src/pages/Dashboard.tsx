@@ -14,13 +14,14 @@ import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
 
 interface Idea {
   id: string;
+  idea_id: string;
   title: string;
   description: string;
   possible_outcome: string;
-  owner: string | null;
-  status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
+  owner_id: string | null;
+  status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
+  category: string | null;
   created_at: string;
-  user_id: string;
 }
 
 export default function Dashboard() {
@@ -67,7 +68,7 @@ export default function Dashboard() {
         description: "Failed to fetch ideas",
       });
     } else {
-      setIdeas(data || []);
+      setIdeas((data || []) as any);
     }
   };
 

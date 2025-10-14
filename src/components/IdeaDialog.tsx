@@ -11,10 +11,12 @@ import { Loader2 } from "lucide-react";
 
 interface Idea {
   id: string;
+  idea_id: string;
   title: string;
   description: string;
   possible_outcome: string;
-  status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
+  status: 'inbox' | 'triaged' | 'backlog' | 'moved' | 'archived';
+  category: string | null;
 }
 
 interface IdeaDialogProps {
@@ -30,6 +32,7 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [description, setDescription] = useState("");
   const [possibleOutcome, setPossibleOutcome] = useState("");
   const [status, setStatus] = useState<string>("inbox");
+  const [category, setCategory] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,11 +41,13 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setDescription(idea.description);
       setPossibleOutcome(idea.possible_outcome);
       setStatus(idea.status);
+      setCategory(idea.category || "");
     } else {
       setTitle("");
       setDescription("");
       setPossibleOutcome("");
       setStatus("inbox");
+      setCategory("");
     }
   }, [idea]);
 
@@ -59,9 +64,11 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
         const { error } = await supabase
           .from('ideas')
           .update({
+            title,
             description,
             possible_outcome: possibleOutcome,
             status: status as any,
+            category: category || null,
           })
           .eq('id', idea.id);
 
@@ -80,9 +87,9 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             description,
             possible_outcome: possibleOutcome,
             status: status as any,
-            user_id: user.id,
-            owner: user.id,
-          }]);
+            category: category || null,
+            owner_id: user.id,
+          } as any]);
 
         if (error) throw error;
 
@@ -149,19 +156,37 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="inbox">Inbox</SelectItem>
-                <SelectItem value="business_backlog">Business & Innovation Backlog</SelectItem>
-                <SelectItem value="engineering_backlog">Software Engineering Backlog</SelectItem>
-                <SelectItem value="outcomes_backlog">Adoption & Outcomes Backlog</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="inbox">Inbox</SelectItem>
+                  <SelectItem value="triaged">Triaged</SelectItem>
+                  <SelectItem value="backlog">Backlog</SelectItem>
+                  <SelectItem value="moved">Moved</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="category">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger className="border-border">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="business">Business & Innovation</SelectItem>
+                  <SelectItem value="software">Software Engineering</SelectItem>
+                  <SelectItem value="adoption">Adoption & Outcomes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end pt-4">

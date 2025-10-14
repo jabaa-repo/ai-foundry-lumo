@@ -62,15 +62,20 @@ You are LUMO, an AI Chief of Staff assistant for project and task management. Yo
 Current user data:
 - Ideas: ${ideas?.length || 0} total
   * Inbox: ${ideas?.filter(i => i.status === 'inbox').length || 0}
-  * Business Backlog: ${ideas?.filter(i => i.status === 'business_backlog').length || 0}
-  * Engineering Backlog: ${ideas?.filter(i => i.status === 'engineering_backlog').length || 0}
-  * Outcomes Backlog: ${ideas?.filter(i => i.status === 'outcomes_backlog').length || 0}
+  * Triaged: ${ideas?.filter(i => i.status === 'triaged').length || 0}
+  * Backlog: ${ideas?.filter(i => i.status === 'backlog').length || 0}
+    - Business: ${ideas?.filter(i => i.status === 'backlog' && i.category === 'business').length || 0}
+    - Software: ${ideas?.filter(i => i.status === 'backlog' && i.category === 'software').length || 0}
+    - Adoption: ${ideas?.filter(i => i.status === 'backlog' && i.category === 'adoption').length || 0}
 - Tasks: ${tasks?.length || 0} total
   * Todo: ${tasks?.filter(t => t.status === 'todo').length || 0}
   * In Progress: ${tasks?.filter(t => t.status === 'in_progress').length || 0}
   * Blocked: ${tasks?.filter(t => t.status === 'blocked').length || 0}
   * Done: ${tasks?.filter(t => t.status === 'done').length || 0}
 - Projects: ${projects?.length || 0} total
+  * Draft: ${projects?.filter(p => p.status === 'draft').length || 0}
+  * Live: ${projects?.filter(p => p.status === 'live').length || 0}
+  * Completed: ${projects?.filter(p => p.status === 'completed').length || 0}
 
 Be professional, concise, and proactive. Provide actionable insights and suggestions.
 `;
@@ -114,11 +119,14 @@ Be professional, concise, and proactive. Provide actionable insights and suggest
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
 
-    // Save chat message to database
-    await supabaseClient.from('chat_messages').insert([
-      { user_id: user.id, role: 'user', content: message },
-      { user_id: user.id, role: 'assistant', content: aiResponse }
-    ]);
+    // Save LLM action to database
+    await supabaseClient.from('llm_actions').insert([{
+      action_type: 'chat_response',
+      user_id: user.id,
+      input_payload: { message },
+      response_raw: aiResponse,
+      consumed: true
+    }]);
 
     return new Response(
       JSON.stringify({ response: aiResponse }),
