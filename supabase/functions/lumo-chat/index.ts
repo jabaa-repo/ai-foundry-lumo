@@ -20,40 +20,47 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not configured');
     }
 
-    // Get the authorization header from the request
+    // Initialize Supabase client with service role for admin operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get the JWT from authorization header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
     }
 
-    // Initialize Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    // Get user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify and get user from JWT
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
     if (userError || !user) {
-      console.error('Auth error:', userError);
+      console.error('Auth verification failed:', userError);
       throw new Error('Unauthorized');
     }
+    
+    console.log('Authenticated user:', user.id);
 
-    // Fetch user's data for context
-    const { data: ideas } = await supabaseClient
+    // Fetch user's data for context using admin client
+    const { data: ideas } = await supabaseAdmin
       .from('ideas')
       .select('*')
+      .eq('owner_id', user.id)
       .limit(50);
 
-    const { data: tasks } = await supabaseClient
+    const { data: tasks } = await supabaseAdmin
       .from('tasks')
       .select('*')
+      .eq('owner_id', user.id)
       .limit(50);
 
-    const { data: projects } = await supabaseClient
+    const { data: projects } = await supabaseAdmin
       .from('projects')
       .select('*')
+      .eq('owner_id', user.id)
       .limit(20);
 
     // Build context for the AI
@@ -115,7 +122,7 @@ Be professional, concise, and proactive. Provide actionable insights and suggest
     const aiResponse = data.choices[0].message.content;
 
     // Save LLM action to database
-    await supabaseClient.from('llm_actions').insert([{
+    await supabaseAdmin.from('llm_actions').insert([{
       action_type: 'chat_response',
       user_id: user.id,
       input_payload: { message },
