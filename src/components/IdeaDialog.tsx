@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, Rocket } from "lucide-react";
+import ConvertToProjectDialog from "./ConvertToProjectDialog";
 
 interface Idea {
   id: string;
@@ -28,6 +29,7 @@ interface IdeaDialogProps {
 
 export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: IdeaDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -343,20 +345,31 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             </div>
           </div>
 
-          <div className="flex gap-2 justify-end pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="border-border"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading}
-              className="bg-primary hover:bg-primary-hover text-primary-foreground"
-            >
+          <div className="flex justify-between items-center pt-4">
+            {idea && !(idea as any).is_project && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowConvertDialog(true)}
+              >
+                <Rocket className="mr-2 h-4 w-4" />
+                Convert to Project
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="border-border"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="bg-primary hover:bg-primary-hover text-primary-foreground"
+              >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

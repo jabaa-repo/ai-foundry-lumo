@@ -16,15 +16,18 @@ import {
   FileText, 
   ClipboardList, 
   FlaskConical, 
-  Shield 
+  Shield,
+  History
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import ReportGenerator from "./ReportGenerator";
 
 export default function MainMenu() {
   const [open, setOpen] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const menuItems = [
     {
@@ -32,7 +35,7 @@ export default function MainMenu() {
       title: "View Archive",
       description: "Access archived projects and ideas",
       onClick: () => {
-        navigate("/projects");
+        navigate("/archive");
         setOpen(false);
       }
     },
@@ -56,15 +59,32 @@ export default function MainMenu() {
     },
     {
       icon: FlaskConical,
-      title: "Experiment Backlog",
+      title: "Experiments Log",
       description: "Manage and track all experiments",
-      onClick: () => console.log("Experiments")
+      onClick: () => {
+        navigate("/experiments");
+        setOpen(false);
+      }
+    },
+    {
+      icon: History,
+      title: "Audit Log",
+      description: "View complete system audit trail",
+      onClick: () => {
+        navigate("/audit-log");
+        setOpen(false);
+      }
     },
     {
       icon: Shield,
       title: "Safety & Governance Checker",
-      description: "Review compliance and governance requirements",
-      onClick: () => console.log("Safety check")
+      description: "Review compliance and governance requirements (Coming Soon)",
+      onClick: () => {
+        toast({
+          title: "Coming Soon",
+          description: "This feature is under development"
+        });
+      }
     },
   ];
 
