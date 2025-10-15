@@ -11,19 +11,23 @@ import AIChatZone from "@/components/AIChatZone";
 
 interface Task {
   id: string;
-  task_id: string;
   title: string;
   description: string | null;
   status: 'todo' | 'in_progress' | 'blocked' | 'done' | 'archived';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date: string | null;
-  progress: number;
+  assigned_to: string | null;
+  owner_id: string | null;
+  idea_id: string | null;
+  created_at: string;
+  updated_at: string;
+  task_id?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  progress?: number;
 }
 
 export default function MyTasks() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -39,33 +43,29 @@ export default function MyTasks() {
   }, [navigate]);
 
   const fetchMyTasks = async (userId: string) => {
-    // Fetch task assignments for this user - cast to any due to pending type generation
-    const result = await (supabase as any)
-      .from('task_assignments')
-      .select('*, tasks(*)')
-      .eq('user_id', userId);
+    // Fetch all tasks (unassigned and assigned to user)
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*')
+      .or(`assigned_to.is.null,assigned_to.eq.${userId}`);
 
-    if (result.error) {
+    if (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch your tasks",
       });
     } else {
-      setAssignments(result.data || []);
-      const taskList = (result.data || []).map((a: any) => a.tasks).filter(Boolean);
-      setTasks(taskList as any);
+      setTasks(data || []);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'todo': return 'bg-muted';
-      case 'in_progress': return 'bg-primary';
-      case 'blocked': return 'bg-destructive';
-      case 'done': return 'bg-accent';
-      default: return 'bg-secondary';
-    }
+  const categorizedTasks = {
+    unassigned: tasks.filter(t => !t.assigned_to),
+    todo: tasks.filter(t => t.assigned_to && t.status === 'todo'),
+    inProgress: tasks.filter(t => t.status === 'in_progress'),
+    underReview: tasks.filter(t => t.status === 'blocked'),
+    done: tasks.filter(t => t.status === 'done')
   };
 
   const getPriorityColor = (priority: string) => {
@@ -77,6 +77,55 @@ export default function MyTasks() {
       default: return 'text-foreground';
     }
   };
+
+  const renderTaskCard = (task: Task) => (
+    <Card key={task.id} className="hover:shadow-hover transition-all mb-3">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              {task.task_id && <Badge variant="outline">{task.task_id}</Badge>}
+              {task.priority && (
+                <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                  {task.priority}
+                </Badge>
+              )}
+            </div>
+            <CardTitle className="text-base">{task.title}</CardTitle>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {task.description && (
+          <p className="text-sm text-muted-foreground">{task.description}</p>
+        )}
+
+        <div className="flex items-center gap-6 text-sm">
+          {task.due_date && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
+
+        {task.progress !== undefined && task.progress !== null && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-muted-foreground">Progress</span>
+              <span className="text-xs font-semibold">{task.progress}%</span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div 
+                className="bg-primary h-full transition-all"
+                style={{ width: `${task.progress}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -99,72 +148,102 @@ export default function MyTasks() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto p-4 space-y-4 pb-64">
-        <div className="grid gap-4">
-          {tasks.map((task) => (
-            <Card key={task.id} className="hover:shadow-hover transition-all">
+      <main className="flex-1 container mx-auto p-4 pb-64">
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {/* Unassigned Column */}
+          <div className="flex-shrink-0 w-80">
+            <Card className="h-full">
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline">{task.task_id}</Badge>
-                      <Badge className={getStatusColor(task.status)}>
-                        {task.status.replace('_', ' ')}
-                      </Badge>
-                      <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                        {task.priority}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{task.title}</CardTitle>
-                  </div>
-                </div>
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Unassigned</span>
+                  <Badge variant="secondary">{categorizedTasks.unassigned.length}</Badge>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {task.description && (
-                  <p className="text-sm text-muted-foreground">{task.description}</p>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {categorizedTasks.unassigned.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No unassigned tasks</p>
+                ) : (
+                  categorizedTasks.unassigned.map(renderTaskCard)
                 )}
-
-                <div className="flex items-center gap-6 text-sm">
-                  {task.due_date && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-                    </div>
-                  )}
-                  {assignments.find(a => a.tasks?.id === task.id) && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <UserIcon className="h-4 w-4" />
-                      <span>{assignments.find(a => a.tasks?.id === task.id).assigned_role}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-muted-foreground">Progress</span>
-                    <span className="text-xs font-semibold">{task.progress}%</span>
-                  </div>
-                  <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                    <div 
-                      className="bg-primary h-full transition-all"
-                      style={{ width: `${task.progress}%` }}
-                    />
-                  </div>
-                </div>
               </CardContent>
             </Card>
-          ))}
+          </div>
 
-          {tasks.length === 0 && (
-            <Card className="p-12">
-              <div className="text-center">
-                <p className="text-muted-foreground">No tasks assigned to you yet</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Tasks will appear here when they're assigned to you
-                </p>
-              </div>
+          {/* To Do Column */}
+          <div className="flex-shrink-0 w-80">
+            <Card className="h-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>To Do</span>
+                  <Badge variant="secondary">{categorizedTasks.todo.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {categorizedTasks.todo.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No tasks to do</p>
+                ) : (
+                  categorizedTasks.todo.map(renderTaskCard)
+                )}
+              </CardContent>
             </Card>
-          )}
+          </div>
+
+          {/* In Progress Column */}
+          <div className="flex-shrink-0 w-80">
+            <Card className="h-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>In Progress</span>
+                  <Badge variant="secondary">{categorizedTasks.inProgress.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {categorizedTasks.inProgress.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No tasks in progress</p>
+                ) : (
+                  categorizedTasks.inProgress.map(renderTaskCard)
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Under Review Column */}
+          <div className="flex-shrink-0 w-80">
+            <Card className="h-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Under Review</span>
+                  <Badge variant="secondary">{categorizedTasks.underReview.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {categorizedTasks.underReview.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No tasks under review</p>
+                ) : (
+                  categorizedTasks.underReview.map(renderTaskCard)
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Done Column */}
+          <div className="flex-shrink-0 w-80">
+            <Card className="h-full">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Done</span>
+                  <Badge variant="secondary">{categorizedTasks.done.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
+                {categorizedTasks.done.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No completed tasks</p>
+                ) : (
+                  categorizedTasks.done.map(renderTaskCard)
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </main>
 
