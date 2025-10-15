@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Calendar, User, CheckSquare, TrendingUp, Code, Target, Trash2, Archive, Sparkles } from "lucide-react";
+import { Calendar, User, CheckSquare, TrendingUp, Code, Target, Trash2, Archive } from "lucide-react";
 import { format } from "date-fns";
 import WorkflowStepIndicator from "./WorkflowStepIndicator";
 import { ChecklistInput, stringToChecklist, checklistToString } from "@/components/ChecklistInput";
@@ -45,7 +45,6 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -204,39 +203,6 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
     }
   };
 
-  const handleGenerateTasks = async () => {
-    if (!project?.id) return;
-    
-    setIsGeneratingTasks(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-tasks', {
-        body: { projectId: project.id }
-      });
-
-      if (error) throw error;
-
-      if (data?.tasks) {
-        toast({
-          title: "Tasks Generated",
-          description: `Generated ${data.tasks.length} tasks with role suggestions. Review them in the Task Lists.`,
-        });
-        
-        // Navigate to tasks page to show the generated tasks
-        navigate('/my-tasks');
-        onOpenChange(false);
-      }
-    } catch (error: any) {
-      console.error('Task generation error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to generate tasks",
-      });
-    } finally {
-      setIsGeneratingTasks(false);
-    }
-  };
-
   const isOwner = currentUserId && project?.owner_id === currentUserId;
 
   if (!project) return null;
@@ -375,15 +341,6 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={handleGenerateTasks}
-                disabled={isGeneratingTasks}
-                className="border-primary text-primary hover:bg-primary/10"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                {isGeneratingTasks ? "Generating..." : "AI Generate Tasks"}
               </Button>
               <Button onClick={handleViewTasks} className="bg-primary hover:bg-primary-hover">
                 <CheckSquare className="mr-2 h-4 w-4" />

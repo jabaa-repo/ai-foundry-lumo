@@ -179,29 +179,12 @@ ${project.desired_outcomes || 'N/A'}`;
       accountable_role_name: ROLE_NAMES[task.accountable_role as keyof typeof ROLE_NAMES],
     }));
 
-    // Insert tasks into database
-    const tasksToInsert = generatedTasks.map((task: any) => ({
-      title: task.title,
-      description: `${task.description}\n\n**Suggested Responsible:** ${task.responsible_role_name}\n**Suggested Accountable:** ${task.accountable_role_name}`,
-      idea_id: projectId,
-      owner_id: user.id,
-      status: 'todo'
-    }));
-
-    const { error: insertError } = await supabase
-      .from('tasks')
-      .insert(tasksToInsert);
-
-    if (insertError) {
-      console.error('Error inserting tasks:', insertError);
-      throw new Error('Failed to save generated tasks');
-    }
-
+    // Return tasks for review - don't insert yet
     return new Response(
       JSON.stringify({ 
         tasks: generatedTasks,
         workflowStep: workflowInfo,
-        message: `Generated ${generatedTasks.length} tasks successfully`
+        message: `Generated ${generatedTasks.length} tasks for review`
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

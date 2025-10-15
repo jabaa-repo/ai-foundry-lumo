@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Calendar, Paperclip, X } from "lucide-react";
+import { Loader2, Rocket, Calendar, Paperclip, X, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { ChecklistInput, checklistToString, stringToChecklist } from "@/components/ChecklistInput";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface ChecklistItem {
   id: string;
@@ -30,6 +32,9 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
   const [aiGenerating, setAiGenerating] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
+  const [generatedTasks, setGeneratedTasks] = useState<any[]>([]);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  const [workflowInfo, setWorkflowInfo] = useState<any>(null);
   const { toast } = useToast();
 
   const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,6 +146,54 @@ OUTCOMES:
     }
   };
 
+  const handleGenerateTasks = async () => {
+    if (!idea?.title || !idea?.description) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Idea must have title and description",
+      });
+      return;
+    }
+
+    setIsGeneratingTasks(true);
+    try {
+      // Create a temporary project object for task generation
+      const tempProject = {
+        id: idea.id,
+        title: idea.title,
+        description: idea.description,
+        project_brief: checklistToString(projectBriefItems),
+        desired_outcomes: checklistToString(desiredOutcomesItems),
+        workflow_step: 1
+      };
+
+      const { data, error } = await supabase.functions.invoke('generate-tasks', {
+        body: { projectId: tempProject.id }
+      });
+
+      if (error) throw error;
+
+      if (data?.tasks) {
+        setGeneratedTasks(data.tasks);
+        setWorkflowInfo(data.workflowStep);
+        toast({
+          title: "Tasks Generated",
+          description: `Generated ${data.tasks.length} tasks. Review and approve to create them.`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Task generation error:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to generate tasks",
+      });
+    } finally {
+      setIsGeneratingTasks(false);
+    }
+  };
+
   const handleConvert = async () => {
     if (!aiTag || aiTag.length === 0) {
       toast({
@@ -208,9 +261,33 @@ OUTCOMES:
 
       if (ideaError) throw ideaError;
 
+      // Insert approved tasks if any
+      if (generatedTasks.length > 0) {
+        const tasksToInsert = generatedTasks.map((task: any) => ({
+          title: task.title,
+          description: `${task.description}\n\n**Responsible:** ${task.responsible_role_name}\n**Accountable:** ${task.accountable_role_name}`,
+          idea_id: project.id,
+          owner_id: user.id,
+          status: 'todo' as const
+        }));
+
+        const { error: tasksError } = await supabase
+          .from('tasks')
+          .insert(tasksToInsert);
+
+        if (tasksError) {
+          console.error('Error creating tasks:', tasksError);
+          toast({
+            variant: "destructive",
+            title: "Warning",
+            description: "Project created but some tasks failed to save",
+          });
+        }
+      }
+
       toast({
         title: "Success!",
-        description: `Project ${projectNumber} created and moved to Business Innovation backlog`,
+        description: `Project ${projectNumber} created${generatedTasks.length > 0 ? ` with ${generatedTasks.length} tasks` : ''} and moved to Business Innovation backlog`,
       });
       
       // Close both dialogs and refresh
@@ -373,6 +450,86 @@ OUTCOMES:
               <p className="text-sm text-muted-foreground mt-1">
                 <strong>Number Preview:</strong> {aiTag}-{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '')}-001
               </p>
+            )}
+          </div>
+
+          {/* Task Generation Section */}
+          <div className="space-y-3 pt-4 border-t border-border">
+            <div className="flex items-center justify-between">
+              <Label className="text-base">AI Task Generation (Optional)</Label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateTasks}
+                disabled={isGeneratingTasks || !aiTag || projectBriefItems.length === 0}
+                className="border-primary text-primary hover:bg-primary/10"
+              >
+                {isGeneratingTasks ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Tasks with AI
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {generatedTasks.length > 0 && (
+              <Card className="border-primary/20">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {generatedTasks.length} Tasks Generated
+                      </p>
+                      {workflowInfo && (
+                        <p className="text-xs text-muted-foreground">
+                          For {workflowInfo.name} ({workflowInfo.division})
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setGeneratedTasks([])}
+                    >
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Clear
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {generatedTasks.map((task: any, index: number) => (
+                      <Card key={index} className="bg-muted/50">
+                        <CardContent className="pt-3 space-y-2">
+                          <p className="text-sm font-medium">{task.title}</p>
+                          <p className="text-xs text-muted-foreground">{task.description}</p>
+                          <div className="flex gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              <strong>R:</strong> {task.responsible_role_name}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs">
+                              <strong>A:</strong> {task.accountable_role_name}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground bg-primary/10 p-2 rounded">
+                    <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                    <p>
+                      These tasks will be created when you convert to project. You can edit them later in the Task Lists.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
