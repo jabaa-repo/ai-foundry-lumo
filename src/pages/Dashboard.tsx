@@ -99,6 +99,7 @@ export default function Dashboard() {
     const { data, error } = await supabase
       .from('projects')
       .select('*')
+      .neq('status', 'archived')
       .order('last_activity_date', { ascending: false });
 
     if (error) {
@@ -235,7 +236,7 @@ export default function Dashboard() {
             onProjectDeleted={() => {
               setShowProjectDialog(false);
               setSelectedProject(null);
-              // Trigger a refresh of the projects list if needed
+              fetchProjects();
             }}
           />
     </div>

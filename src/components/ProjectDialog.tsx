@@ -230,12 +230,6 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Workflow */}
-          {project.workflow_step !== undefined && (
-            <div>
-              <WorkflowStepIndicator step={project.workflow_step} />
-            </div>
-          )}
 
           {/* Description */}
           {project.description && (

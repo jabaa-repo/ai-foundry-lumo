@@ -231,11 +231,6 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
                       {project.project_number}
                     </Badge>
                   )}
-                  {project.workflow_step !== undefined && (
-                    <div className="mt-2">
-                      <WorkflowStepIndicator step={project.workflow_step} compact />
-                    </div>
-                  )}
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {project.description && (
