@@ -363,9 +363,23 @@ DESCRIPTION: [improved description]`
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col bg-card border-border">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-foreground">
-            {idea ? "Edit Idea" : "Add New Idea"}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-foreground">
+              {idea ? "Edit Idea" : "Add New Idea"}
+            </DialogTitle>
+            {idea && !(idea as any).is_project && (
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => setShowConvertDialog(true)}
+                className="bg-primary hover:bg-primary-hover"
+                size="sm"
+              >
+                <Rocket className="mr-2 h-4 w-4" />
+                Move to Project
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="space-y-4 overflow-y-auto pr-2 flex-1">
@@ -499,7 +513,7 @@ DESCRIPTION: [improved description]`
                     <Archive className="mr-2 h-4 w-4" />
                     Archive
                   </Button>
-                  <Button
+                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowDeleteDialog(true)}
@@ -507,15 +521,6 @@ DESCRIPTION: [improved description]`
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="default"
-                    onClick={() => setShowConvertDialog(true)}
-                    className="bg-primary hover:bg-primary-hover"
-                  >
-                    <Rocket className="mr-2 h-4 w-4" />
-                    Move to Project
                   </Button>
                 </>
               )}
