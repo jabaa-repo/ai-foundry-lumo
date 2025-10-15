@@ -30,6 +30,7 @@ interface Idea {
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
   const [showIdeaDialog, setShowIdeaDialog] = useState(false);
   const [activeTasks, setActiveTasks] = useState(0);
@@ -41,6 +42,7 @@ export default function Dashboard() {
       if (session?.user) {
         setUser(session.user);
         fetchIdeas();
+        fetchProjects();
         fetchActiveTasks();
       } else {
         navigate("/auth");
@@ -56,8 +58,8 @@ export default function Dashboard() {
     });
 
     // Set up realtime subscription for ideas
-    const channel = supabase
-      .channel('schema-db-changes')
+    const ideasChannel = supabase
+      .channel('ideas-changes')
       .on(
         'postgres_changes',
         {
@@ -69,11 +71,43 @@ export default function Dashboard() {
       )
       .subscribe();
 
+    // Set up realtime subscription for projects
+    const projectsChannel = supabase
+      .channel('projects-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects'
+        },
+        () => fetchProjects()
+      )
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ideasChannel);
+      supabase.removeChannel(projectsChannel);
     };
   }, [navigate]);
+
+  const fetchProjects = async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('last_activity_date', { ascending: false });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch projects",
+      });
+    } else {
+      setProjects((data || []) as any);
+    }
+  };
 
   const fetchIdeas = async () => {
     const { data, error } = await supabase
@@ -166,7 +200,7 @@ export default function Dashboard() {
           </Button>
         </div>
         
-        <KanbanBoard ideas={ideas} onIdeaClick={handleIdeaClick} />
+        <KanbanBoard ideas={ideas} projects={projects} onIdeaClick={handleIdeaClick} />
       </main>
 
       {/* AI Chat Zone */}
