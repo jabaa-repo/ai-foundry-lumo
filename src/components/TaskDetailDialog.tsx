@@ -438,9 +438,22 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const handleAssignAccountable = async (userId: string, displayName: string) => {
     if (!task) return;
 
+    // Validate required dates
+    if (!startDate || !dueDate) {
+      toast({ 
+        title: "Required Fields Missing", 
+        description: "Please set both start date and due date before assigning", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("tasks")
-      .update({ assigned_to: userId })
+      .update({ 
+        assigned_to: userId,
+        status: 'todo'
+      })
       .eq("id", task.id);
 
     if (error) {
@@ -452,17 +465,8 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     setAccountableSearchQuery("");
     setShowAccountableSearch(false);
     
-    // Set start date to today when assigning
-    if (!startDate) {
-      const today = format(new Date(), "yyyy-MM-dd");
-      setStartDate(today);
-      await supabase
-        .from("tasks")
-        .update({ start_date: new Date().toISOString() })
-        .eq("id", task.id);
-    }
-    
     logActivity("assigned_accountable", displayName);
+    toast({ title: "Success", description: "Task assigned and moved to To Do" });
     onTaskUpdate();
   };
 
@@ -502,20 +506,20 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-2xl">{task.title}</DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+        <Tabs defaultValue="details" className="w-full flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-3 shrink-0">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="comments">Comments</TabsTrigger>
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="details" className="space-y-4">
-            <ScrollArea className="h-[500px] pr-4">
+          <TabsContent value="details" className="space-y-4 overflow-hidden">
+            <ScrollArea className="h-[calc(90vh-12rem)] pr-4">
               <div className="space-y-4">
                 {/* Assign Accountable and Responsible */}
                 <div className="grid grid-cols-2 gap-4">
@@ -686,8 +690,8 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="comments">
-            <ScrollArea className="h-[500px] pr-4">
+          <TabsContent value="comments" className="overflow-hidden">
+            <ScrollArea className="h-[calc(90vh-12rem)] pr-4">
               <div className="space-y-4">
                 {comments.map((comment) => (
                   <div key={comment.id} className="space-y-2">
@@ -770,8 +774,8 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
             </ScrollArea>
           </TabsContent>
 
-          <TabsContent value="activity">
-            <ScrollArea className="h-[500px] pr-4">
+          <TabsContent value="activity" className="overflow-hidden">
+            <ScrollArea className="h-[calc(90vh-12rem)] pr-4">
               <div className="space-y-3">
                 {activityLog.map((log) => (
                   <div key={log.id} className="flex gap-3 text-sm">
