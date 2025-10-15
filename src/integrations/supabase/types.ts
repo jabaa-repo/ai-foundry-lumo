@@ -201,51 +201,69 @@ export type Database = {
       projects: {
         Row: {
           accountable_id: string | null
+          backlog: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids: string[] | null
           created_at: string
           description: string | null
+          desired_outcomes: string
           id: string
           informed_ids: string[] | null
+          last_activity_date: string | null
           latest_update: string | null
           owner_id: string | null
           primary_metric: number | null
+          project_brief: string
+          project_number: string | null
           responsible_id: string | null
           secondary_metrics: Json | null
           status: Database["public"]["Enums"]["project_status"]
           title: string
           updated_at: string
+          workflow_step: number | null
         }
         Insert: {
           accountable_id?: string | null
+          backlog?: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids?: string[] | null
           created_at?: string
           description?: string | null
+          desired_outcomes: string
           id?: string
           informed_ids?: string[] | null
+          last_activity_date?: string | null
           latest_update?: string | null
           owner_id?: string | null
           primary_metric?: number | null
+          project_brief: string
+          project_number?: string | null
           responsible_id?: string | null
           secondary_metrics?: Json | null
           status?: Database["public"]["Enums"]["project_status"]
           title: string
           updated_at?: string
+          workflow_step?: number | null
         }
         Update: {
           accountable_id?: string | null
+          backlog?: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids?: string[] | null
           created_at?: string
           description?: string | null
+          desired_outcomes?: string
           id?: string
           informed_ids?: string[] | null
+          last_activity_date?: string | null
           latest_update?: string | null
           owner_id?: string | null
           primary_metric?: number | null
+          project_brief?: string
+          project_number?: string | null
           responsible_id?: string | null
           secondary_metrics?: Json | null
           status?: Database["public"]["Enums"]["project_status"]
           title?: string
           updated_at?: string
+          workflow_step?: number | null
         }
         Relationships: []
       }
@@ -301,9 +319,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_project_number: {
+        Args: { ai_tag: string }
+        Returns: string
+      }
     }
     Enums: {
+      backlog_type: "business_innovation" | "engineering" | "outcomes_adoption"
       idea_status:
         | "inbox"
         | "business_backlog"
@@ -439,6 +461,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      backlog_type: ["business_innovation", "engineering", "outcomes_adoption"],
       idea_status: [
         "inbox",
         "business_backlog",

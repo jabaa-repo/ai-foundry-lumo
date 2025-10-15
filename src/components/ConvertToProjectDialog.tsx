@@ -3,11 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Rocket } from "lucide-react";
-import { WORKFLOW_STEPS } from "./WorkflowStepIndicator";
 
 interface ConvertToProjectDialogProps {
   idea: any;
@@ -18,16 +17,99 @@ interface ConvertToProjectDialogProps {
 
 export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuccess }: ConvertToProjectDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [initials, setInitials] = useState("");
-  const [workflowStep, setWorkflowStep] = useState("1");
+  const [aiTag, setAiTag] = useState("");
+  const [projectBrief, setProjectBrief] = useState("");
+  const [desiredOutcomes, setDesiredOutcomes] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
   const { toast } = useToast();
 
-  const handleConvert = async () => {
-    if (!initials || initials.length < 2 || initials.length > 4) {
+  const handleGenerateAI = async () => {
+    if (!idea?.title || !idea?.description) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Please enter 2-4 character initials",
+        description: "Idea must have title and description",
+      });
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to use AI assistance",
+      });
+      return;
+    }
+
+    setAiGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('lumo-chat', {
+        body: { 
+          message: `Based on this idea, generate:
+1. A single-word tag (in UPPERCASE) that captures the essence of this project
+2. A comprehensive project brief (2-3 paragraphs)
+3. Clear desired outcomes (3-5 bullet points)
+
+Idea Title: ${idea.title}
+Idea Description: ${idea.description}
+
+Format your response as:
+TAG: [single uppercase word]
+BRIEF: [project brief]
+OUTCOMES: [desired outcomes]`
+        }
+      });
+
+      if (error) throw error;
+
+      const response = data.response;
+      
+      const tagMatch = response.match(/TAG:\s*([A-Z]+)/);
+      const briefMatch = response.match(/BRIEF:\s*(.+?)(?=\nOUTCOMES:|$)/s);
+      const outcomesMatch = response.match(/OUTCOMES:\s*(.+?)$/s);
+      
+      if (tagMatch && tagMatch[1]) {
+        setAiTag(tagMatch[1].trim());
+      }
+      if (briefMatch && briefMatch[1]) {
+        setProjectBrief(briefMatch[1].trim());
+      }
+      if (outcomesMatch && outcomesMatch[1]) {
+        setDesiredOutcomes(outcomesMatch[1].trim());
+      }
+
+      toast({
+        title: "AI Generated",
+        description: "Project details generated. Review and edit as needed.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to generate AI content",
+      });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleConvert = async () => {
+    if (!aiTag || aiTag.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please generate AI tag first",
+      });
+      return;
+    }
+
+    if (!projectBrief || !desiredOutcomes) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Project Brief and Desired Outcomes are required",
       });
       return;
     }
@@ -39,7 +121,7 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
 
       // Generate project number
       const { data: projectNumber, error: rpcError } = await (supabase as any).rpc('generate_project_number', {
-        user_initials: initials.toUpperCase()
+        ai_tag: aiTag.toUpperCase()
       });
 
       if (rpcError) throw rpcError;
@@ -48,15 +130,17 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert({
-          project_number: projectNumber,
           title: idea.title,
           description: idea.description,
+          project_brief: projectBrief,
+          desired_outcomes: desiredOutcomes,
           owner_id: user.id,
           responsible_id: idea.responsible_id,
           accountable_id: idea.accountable_id,
           consulted_ids: idea.consulted_ids || [],
           informed_ids: idea.informed_ids || [],
-          workflow_step: parseInt(workflowStep),
+          workflow_step: 1,
+          backlog: 'business_innovation',
           status: 'recent',
           last_activity_date: new Date().toISOString(),
         })
@@ -77,18 +161,9 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
 
       if (ideaError) throw ideaError;
 
-      // Log audit
-      await (supabase as any).from('audit_log').insert({
-        entity_type: 'project',
-        entity_id: project.id,
-        action: 'convert_idea_to_project',
-        actor_id: user.id,
-        details: { idea_id: idea.id, project_number: projectNumber, workflow_step: parseInt(workflowStep) }
-      });
-
       toast({
         title: "Success!",
-        description: `Project ${projectNumber} created from idea`,
+        description: `Project ${projectNumber} created and moved to Business Innovation backlog`,
       });
       
       onSuccess();
@@ -118,44 +193,76 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          <Button
+            type="button"
+            onClick={handleGenerateAI}
+            disabled={aiGenerating}
+            className="w-full"
+          >
+            {aiGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                AI Generating Project Details...
+              </>
+            ) : (
+              <>
+                <Rocket className="mr-2 h-4 w-4" />
+                Generate Project Details with AI
+              </>
+            )}
+          </Button>
+
           <div className="space-y-2">
-            <Label>Your Initials (2-4 characters) *</Label>
+            <Label>Project Tag *</Label>
             <Input
-              placeholder="e.g., NM, JD, ABC"
-              value={initials}
-              onChange={(e) => setInitials(e.target.value.toUpperCase())}
-              maxLength={4}
+              placeholder="e.g., LOAN, PAYMENT"
+              value={aiTag}
+              onChange={(e) => setAiTag(e.target.value.toUpperCase())}
               className="uppercase"
+              disabled={aiGenerating}
             />
             <p className="text-xs text-muted-foreground">
-              Format: DDMMYY + Initials + 0001
+              Format: TAG-DDMMYYYY-001
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Starting Workflow Step</Label>
-            <Select value={workflowStep} onValueChange={setWorkflowStep}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WORKFLOW_STEPS.filter(s => s.step > 0).map((step) => (
-                  <SelectItem key={step.step} value={step.step.toString()}>
-                    Step {step.step}: {step.name} {step.division && `(${step.division})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Project Brief *</Label>
+            <Textarea
+              placeholder="Comprehensive project description..."
+              value={projectBrief}
+              onChange={(e) => setProjectBrief(e.target.value)}
+              rows={4}
+              disabled={aiGenerating}
+              className="resize-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Desired Outcomes *</Label>
+            <Textarea
+              placeholder="Expected results and success criteria..."
+              value={desiredOutcomes}
+              onChange={(e) => setDesiredOutcomes(e.target.value)}
+              rows={4}
+              disabled={aiGenerating}
+              className="resize-none"
+            />
           </div>
 
           <div className="bg-muted p-3 rounded-md">
-            <p className="text-sm font-semibold mb-1">Project Preview</p>
+            <p className="text-sm font-semibold mb-1">Project Setup</p>
             <p className="text-sm text-muted-foreground">
               <strong>Title:</strong> {idea?.title}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              <strong>Number:</strong> Will be auto-generated
+              <strong>Backlog:</strong> Business Innovation (Step 1)
             </p>
+            {aiTag && (
+              <p className="text-sm text-muted-foreground mt-1">
+                <strong>Number Preview:</strong> {aiTag}-{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '')}-001
+              </p>
+            )}
           </div>
         </div>
 
@@ -163,7 +270,7 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleConvert} disabled={loading || !initials}>
+          <Button onClick={handleConvert} disabled={loading || !aiTag || !projectBrief || !desiredOutcomes}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Convert to Project
           </Button>
