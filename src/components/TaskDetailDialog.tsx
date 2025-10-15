@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Send, Paperclip, Download, Trash2 } from "lucide-react";
+import { Calendar, Send, Paperclip, Download, Trash2, X, Check } from "lucide-react";
 import { format } from "date-fns";
 
 interface Task {
@@ -23,6 +23,13 @@ interface Task {
   assigned_to?: string;
   responsible_role?: string;
   accountable_role?: string;
+}
+
+interface ResponsibleUser {
+  id: string;
+  user_id: string;
+  display_name?: string;
+  avatar_url?: string;
 }
 
 interface TaskActivity {
@@ -95,7 +102,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [taskAttachments, setTaskAttachments] = useState<TaskAttachment[]>([]);
   const [commentAttachments, setCommentAttachments] = useState<Record<string, CommentAttachment[]>>({});
   const [accountableUser, setAccountableUser] = useState<string>("");
-  const [responsibleUser, setResponsibleUser] = useState<string>("");
+  const [responsibleUsers, setResponsibleUsers] = useState<ResponsibleUser[]>([]);
   const [accountableSearchQuery, setAccountableSearchQuery] = useState("");
   const [responsibleSearchQuery, setResponsibleSearchQuery] = useState("");
   const [accountableSearchResults, setAccountableSearchResults] = useState<Profile[]>([]);
@@ -105,6 +112,8 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalTask, setOriginalTask] = useState<Task | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -113,11 +122,13 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       fetchComments();
       fetchActivityLog();
       fetchTaskAttachments();
+      fetchResponsibleUsers();
       setAccountableUser(task.assigned_to || "");
-      setResponsibleUser(task.assigned_to || "");
       const currentStartDate = task.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
       setStartDate(currentStartDate);
       setDueDate(task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "");
+      setOriginalTask(task);
+      setHasChanges(false);
     }
   }, [task]);
 
@@ -229,6 +240,36 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
 
     if (!error && data) {
       setCommentAttachments((prev) => ({ ...prev, [commentId]: data }));
+    }
+  };
+
+  const fetchResponsibleUsers = async () => {
+    if (!task) return;
+
+    const { data, error } = await supabase
+      .from("task_responsible_users")
+      .select("id, user_id")
+      .eq("task_id", task.id);
+
+    if (error || !data) return;
+
+    // Fetch profiles for responsible users
+    const userIds = data.map((r) => r.user_id);
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .in("id", userIds);
+
+      const usersWithProfiles = data.map((ru) => ({
+        ...ru,
+        display_name: profiles?.find((p) => p.id === ru.user_id)?.display_name,
+        avatar_url: profiles?.find((p) => p.id === ru.user_id)?.avatar_url,
+      }));
+
+      setResponsibleUsers(usersWithProfiles);
+    } else {
+      setResponsibleUsers([]);
     }
   };
 
@@ -435,57 +476,86 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     logActivity("added_comment");
   };
 
-  const handleAssignAccountable = async (userId: string, displayName: string) => {
+  const handleAssignAccountable = (userId: string, displayName: string) => {
+    setAccountableUser(userId);
+    setAccountableSearchQuery("");
+    setShowAccountableSearch(false);
+    setHasChanges(true);
+  };
+
+  const handleAssignResponsible = async (userId: string, displayName: string) => {
+    if (!task) return;
+    
+    // Check if already added
+    if (responsibleUsers.some(u => u.user_id === userId)) {
+      toast({ title: "Already Added", description: "This person is already assigned as responsible" });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("task_responsible_users")
+      .insert({ task_id: task.id, user_id: userId });
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to assign responsible person", variant: "destructive" });
+      return;
+    }
+
+    setResponsibleSearchQuery("");
+    setShowResponsibleSearch(false);
+    fetchResponsibleUsers();
+    logActivity("assigned_responsible", displayName);
+    setHasChanges(true);
+  };
+
+  const handleRemoveResponsible = async (responsibleId: string, displayName?: string) => {
+    const { error } = await supabase
+      .from("task_responsible_users")
+      .delete()
+      .eq("id", responsibleId);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to remove responsible person", variant: "destructive" });
+      return;
+    }
+
+    fetchResponsibleUsers();
+    logActivity("removed_responsible", displayName || "Unknown");
+    setHasChanges(true);
+  };
+
+  const handleDone = async () => {
     if (!task) return;
 
-    // Validate required dates
-    if (!startDate || !dueDate) {
+    // Validate required fields
+    if (!accountableUser) {
       toast({ 
-        title: "Required Fields Missing", 
-        description: "Please set both start date and due date before assigning", 
+        title: "Required Field Missing", 
+        description: "Please assign an accountable person", 
         variant: "destructive" 
       });
       return;
     }
 
-    const { error } = await supabase
-      .from("tasks")
-      .update({ 
-        assigned_to: userId,
-        status: 'todo'
-      })
-      .eq("id", task.id);
-
-    if (error) {
-      toast({ title: "Error", description: "Failed to assign accountable person", variant: "destructive" });
+    if (!startDate || !dueDate) {
+      toast({ 
+        title: "Required Fields Missing", 
+        description: "Please set both start date and due date", 
+        variant: "destructive" 
+      });
       return;
     }
 
-    setAccountableUser(userId);
-    setAccountableSearchQuery("");
-    setShowAccountableSearch(false);
-    
-    logActivity("assigned_accountable", displayName);
-    toast({ title: "Success", description: "Task assigned and moved to To Do" });
-    onTaskUpdate();
-  };
+    const updates: any = {
+      assigned_to: accountableUser,
+      start_date: new Date(startDate).toISOString(),
+      due_date: new Date(dueDate).toISOString(),
+    };
 
-  const handleAssignResponsible = async (userId: string, displayName: string) => {
-    if (!task) return;
-
-    setResponsibleUser(userId);
-    setResponsibleSearchQuery("");
-    setShowResponsibleSearch(false);
-    logActivity("assigned_responsible", displayName);
-    onTaskUpdate();
-  };
-
-  const handleUpdateDates = async () => {
-    if (!task) return;
-
-    const updates: any = {};
-    if (startDate) updates.start_date = new Date(startDate).toISOString();
-    if (dueDate) updates.due_date = new Date(dueDate).toISOString();
+    // Update status to 'todo' if accountable person was just assigned
+    if (originalTask?.assigned_to !== accountableUser) {
+      updates.status = 'todo';
+    }
 
     const { error } = await supabase
       .from("tasks")
@@ -493,13 +563,19 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       .eq("id", task.id);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to update dates", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to save changes", variant: "destructive" });
       return;
     }
 
-    logActivity("updated_dates", `Start: ${startDate || "N/A"}, Due: ${dueDate || "N/A"}`);
+    if (originalTask?.assigned_to !== accountableUser) {
+      logActivity("assigned_accountable", accountableUser);
+    }
+    logActivity("updated_task", "Task details saved");
+    
+    setHasChanges(false);
+    setOriginalTask({ ...task, ...updates });
     onTaskUpdate();
-    toast({ title: "Success", description: "Dates updated successfully" });
+    toast({ title: "Success", description: "Changes saved successfully" });
   };
 
   if (!task) return null;
@@ -507,8 +583,17 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader>
+        <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-2xl">{task.title}</DialogTitle>
+          <Button 
+            onClick={handleDone} 
+            disabled={!hasChanges}
+            size="sm"
+            className="ml-auto"
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Done
+          </Button>
         </DialogHeader>
 
         <Tabs defaultValue="details" className="w-full flex flex-col overflow-hidden">
@@ -521,94 +606,6 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
           <TabsContent value="details" className="space-y-4 overflow-hidden">
             <ScrollArea className="h-[calc(90vh-12rem)] pr-4">
               <div className="space-y-4">
-                {/* Assign Accountable and Responsible */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Assign Accountable Person</label>
-                    <div className="relative mt-1">
-                      <Input
-                        placeholder="Type @ to search..."
-                        value={accountableSearchQuery}
-                        onChange={(e) => setAccountableSearchQuery(e.target.value)}
-                      />
-                      {showAccountableSearch && accountableSearchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
-                          {accountableSearchResults.map((user) => (
-                            <button
-                              key={user.id}
-                              onClick={() => handleAssignAccountable(user.id, user.display_name || "Unknown")}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
-                            >
-                              <Avatar className="w-6 h-6">
-                                <AvatarImage src={user.avatar_url || ""} />
-                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Assign Responsible Person</label>
-                    <div className="relative mt-1">
-                      <Input
-                        placeholder="Type @ to search..."
-                        value={responsibleSearchQuery}
-                        onChange={(e) => setResponsibleSearchQuery(e.target.value)}
-                      />
-                      {showResponsibleSearch && responsibleSearchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
-                          {responsibleSearchResults.map((user) => (
-                            <button
-                              key={user.id}
-                              onClick={() => handleAssignResponsible(user.id, user.display_name || "Unknown")}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
-                            >
-                              <Avatar className="w-6 h-6">
-                                <AvatarImage src={user.avatar_url || ""} />
-                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Dates */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Start Date</label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Due Date</label>
-                    <Input
-                      type="date"
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleUpdateDates} size="sm">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Update Dates
-                </Button>
-
-                <Separator />
-
                 {/* Task Attachments */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -684,6 +681,129 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                       className="flex-1"
                     />
                     <Button onClick={handleAddActivity} size="sm" className="shrink-0">Add</Button>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">
+                      Start Date <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => {
+                        setStartDate(e.target.value);
+                        setHasChanges(true);
+                      }}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">
+                      Due Date <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => {
+                        setDueDate(e.target.value);
+                        setHasChanges(true);
+                      }}
+                      className="mt-1"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Assign Accountable and Responsible */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">
+                      Assign Accountable Person <span className="text-destructive">*</span>
+                    </label>
+                    <div className="relative mt-1">
+                      <Input
+                        placeholder="Type @ to search..."
+                        value={accountableSearchQuery}
+                        onChange={(e) => setAccountableSearchQuery(e.target.value)}
+                        required
+                      />
+                      {showAccountableSearch && accountableSearchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                          {accountableSearchResults.map((user) => (
+                            <button
+                              key={user.id}
+                              onClick={() => handleAssignAccountable(user.id, user.display_name || "Unknown")}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={user.avatar_url || ""} />
+                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {accountableUser && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>Assigned</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Assign Responsible Persons</label>
+                    <div className="relative mt-1">
+                      <Input
+                        placeholder="Type @ to search..."
+                        value={responsibleSearchQuery}
+                        onChange={(e) => setResponsibleSearchQuery(e.target.value)}
+                      />
+                      {showResponsibleSearch && responsibleSearchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                          {responsibleSearchResults.map((user) => (
+                            <button
+                              key={user.id}
+                              onClick={() => handleAssignResponsible(user.id, user.display_name || "Unknown")}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={user.avatar_url || ""} />
+                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {responsibleUsers.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {responsibleUsers.map((user) => (
+                          <div key={user.id} className="flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-sm">
+                            <Avatar className="w-4 h-4">
+                              <AvatarImage src={user.avatar_url || ""} />
+                              <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
+                            </Avatar>
+                            <span>{user.display_name || "Unknown"}</span>
+                            <button
+                              onClick={() => handleRemoveResponsible(user.id, user.display_name)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
