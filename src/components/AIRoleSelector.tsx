@@ -2,15 +2,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 
 const AI_FOUNDRY_ROLES = [
-  { id: 'business_strategist', name: 'Business Strategist', description: 'Strategic planning and business model development' },
-  { id: 'technical_architect', name: 'Technical Architect', description: 'System design and technical infrastructure' },
-  { id: 'data_scientist', name: 'Data Scientist', description: 'Data analysis and ML model development' },
-  { id: 'ux_designer', name: 'UX Designer', description: 'User experience and interface design' },
-  { id: 'product_manager', name: 'Product Manager', description: 'Product strategy and roadmap planning' },
-  { id: 'ml_engineer', name: 'ML Engineer', description: 'ML model deployment and optimization' },
-  { id: 'quality_engineer', name: 'Quality Engineer', description: 'Testing and quality assurance' },
-  { id: 'adoption_specialist', name: 'Adoption Specialist', description: 'Change management and user adoption' },
-  { id: 'project_manager', name: 'Project Manager', description: 'Project planning and report writing' },
+  // Business Innovation Team
+  { id: 'business_analyst', name: 'Business Analyst', description: 'Analyze current processes and identify opportunities', division: 'Business Innovation' },
+  { id: 'ai_process_reengineer', name: 'AI Process Reengineer', description: 'Redesign processes with AI capabilities', division: 'Business Innovation' },
+  { id: 'ai_innovation_executive', name: 'AI Innovation Executive', description: 'Lead innovation strategy and experimentation', division: 'Business Innovation' },
+  
+  // Engineering Team
+  { id: 'ai_system_architect', name: 'AI System Architect', description: 'Design technical architecture and specifications', division: 'Engineering' },
+  { id: 'ai_system_engineer', name: 'AI System Engineer', description: 'Build and implement AI solutions', division: 'Engineering' },
+  { id: 'ai_data_engineer', name: 'AI Data Engineer', description: 'Manage data infrastructure and analytics', division: 'Engineering' },
+  
+  // Adoption & Outcomes Team
+  { id: 'outcomes_analytics_executive', name: 'Outcomes & Analytics Executive', description: 'Monitor outcomes and drive continuous improvement', division: 'Adoption' },
+  { id: 'education_implementation_executive', name: 'Education & Implementation Executive', description: 'Develop training and manage rollout', division: 'Adoption' },
+  { id: 'change_leadership_architect', name: 'Change Leadership Architect', description: 'Lead change management and adoption strategy', division: 'Adoption' },
 ];
 
 interface AIRoleSelectorProps {
@@ -30,7 +35,10 @@ export default function AIRoleSelector({ value, onValueChange }: AIRoleSelectorP
           {AI_FOUNDRY_ROLES.map((role) => (
             <SelectItem key={role.id} value={role.id}>
               <div className="flex flex-col items-start">
-                <span className="font-medium">{role.name}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{role.name}</span>
+                  <span className="text-xs text-muted-foreground">({role.division})</span>
+                </div>
                 <span className="text-xs text-muted-foreground">{role.description}</span>
               </div>
             </SelectItem>
