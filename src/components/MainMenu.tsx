@@ -33,9 +33,18 @@ export default function MainMenu() {
     {
       icon: Archive,
       title: "View Archive",
-      description: "Access archived projects and ideas",
+      description: "Access archived projects",
       onClick: () => {
         navigate("/archive");
+        setOpen(false);
+      }
+    },
+    {
+      icon: Archive,
+      title: "Archived Ideas",
+      description: "View ideas moved to archive",
+      onClick: () => {
+        navigate("/archived-ideas");
         setOpen(false);
       }
     },

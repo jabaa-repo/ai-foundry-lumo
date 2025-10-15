@@ -6,9 +6,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Sparkles, X } from "lucide-react";
+import { Loader2, Rocket, Sparkles, X, Trash2, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Idea {
   id: string;
@@ -45,6 +55,8 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [description, setDescription] = useState("");
   const [departments, setDepartments] = useState<string[]>([]);
   const [newDepartment, setNewDepartment] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -205,6 +217,87 @@ DESCRIPTION: [improved description]`
     }
   };
 
+
+  const handleDelete = async () => {
+    if (!idea) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('ideas')
+        .delete()
+        .eq('id', idea.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Idea deleted permanently",
+      });
+
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!idea) return;
+    
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Insert into archived_ideas
+      const { error: insertError } = await supabase
+        .from('archived_ideas')
+        .insert({
+          user_id: user.id,
+          title: idea.title,
+          description: idea.description,
+          possible_outcome: idea.possible_outcome,
+          departments: idea.departments || [],
+          category: idea.category,
+          idea_id: idea.idea_id,
+        });
+
+      if (insertError) throw insertError;
+
+      // Delete from ideas
+      const { error: deleteError } = await supabase
+        .from('ideas')
+        .delete()
+        .eq('id', idea.id);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Success",
+        description: "Idea archived successfully",
+      });
+
+      onSuccess();
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+      setShowArchiveDialog(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -391,18 +484,40 @@ DESCRIPTION: [improved description]`
             )}
           </Button>
 
-          <div className="flex justify-between items-center pt-4 border-t border-border">
-            {idea && !(idea as any).is_project && (
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => setShowConvertDialog(true)}
-                className="bg-primary hover:bg-primary-hover"
-              >
-                <Rocket className="mr-2 h-4 w-4" />
-                Move to Project
-              </Button>
-            )}
+          <div className="flex justify-between items-center pt-4 border-t border-border gap-2">
+            <div className="flex gap-2">
+              {idea && !(idea as any).is_project && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowArchiveDialog(true)}
+                    className="border-border"
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => setShowConvertDialog(true)}
+                    className="bg-primary hover:bg-primary-hover"
+                  >
+                    <Rocket className="mr-2 h-4 w-4" />
+                    Move to Project
+                  </Button>
+                </>
+              )}
+            </div>
             <div className="flex gap-2 ml-auto">
               <Button
                 type="button"
@@ -442,6 +557,40 @@ DESCRIPTION: [improved description]`
           onOpenChange(false);
         }}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Idea</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this idea? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Idea</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to archive this idea? You can view it later in Archived Ideas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchive}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

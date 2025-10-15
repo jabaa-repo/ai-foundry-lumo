@@ -9,6 +9,7 @@ import MyTasks from "./pages/MyTasks";
 import ProjectsLog from "./pages/ProjectsLog";
 import Experiments from "./pages/Experiments";
 import Archive from "./pages/Archive";
+import ArchivedIdeas from "./pages/ArchivedIdeas";
 import AuditLog from "./pages/AuditLog";
 import NotFound from "./pages/NotFound";
 
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/projects" element={<ProjectsLog />} />
           <Route path="/experiments" element={<Experiments />} />
           <Route path="/archive" element={<Archive />} />
+          <Route path="/archived-ideas" element={<ArchivedIdeas />} />
           <Route path="/audit-log" element={<AuditLog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

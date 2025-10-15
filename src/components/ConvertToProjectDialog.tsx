@@ -3,17 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Calendar, Paperclip, X, Sparkles, CheckCircle2, XCircle } from "lucide-react";
-import { ChecklistInput, checklistToString, stringToChecklist } from "@/components/ChecklistInput";
+import { Loader2, Rocket, Calendar, Paperclip, X, Sparkles, CheckCircle2, XCircle, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-interface ChecklistItem {
+interface ManualTask {
   id: string;
-  text: string;
-  checked: boolean;
+  title: string;
+  description: string;
 }
 
 interface ConvertToProjectDialogProps {
@@ -26,8 +26,8 @@ interface ConvertToProjectDialogProps {
 export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuccess }: ConvertToProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [aiTag, setAiTag] = useState("");
-  const [projectBriefItems, setProjectBriefItems] = useState<ChecklistItem[]>([]);
-  const [desiredOutcomesItems, setDesiredOutcomesItems] = useState<ChecklistItem[]>([]);
+  const [projectBrief, setProjectBrief] = useState("");
+  const [desiredOutcomes, setDesiredOutcomes] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -35,6 +35,10 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
   const [generatedTasks, setGeneratedTasks] = useState<any[]>([]);
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [workflowInfo, setWorkflowInfo] = useState<any>(null);
+  const [manualTasks, setManualTasks] = useState<ManualTask[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [isRewritingTasks, setIsRewritingTasks] = useState(false);
   const { toast } = useToast();
 
   const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,8 +98,8 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
         body: { 
           message: `Based on this idea, generate:
 1. A single-word tag (in UPPERCASE) that captures the essence of this project
-2. A project brief as a checklist of expected features (5-8 items) - these will be converted to engineering tasks later
-3. Desired outcomes as a checklist (3-5 items)
+2. A project brief listing expected features (5-8 items as bullet points)
+3. Desired outcomes as bullet points (3-5 items)
 
 Idea Title: ${idea.title}
 Idea Description: ${idea.description}${fileContext}
@@ -103,12 +107,12 @@ Idea Description: ${idea.description}${fileContext}
 Format your response as:
 TAG: [single uppercase word]
 BRIEF:
-- [ ] Feature 1
-- [ ] Feature 2
+- Feature 1
+- Feature 2
 ...
 OUTCOMES:
-- [ ] Outcome 1
-- [ ] Outcome 2
+- Outcome 1
+- Outcome 2
 ...`
         }
       });
@@ -125,10 +129,12 @@ OUTCOMES:
         setAiTag(tagMatch[1].trim());
       }
       if (briefMatch && briefMatch[1]) {
-        setProjectBriefItems(stringToChecklist(briefMatch[1].trim()));
+        const briefText = briefMatch[1].trim().split('\n').map(line => line.replace(/^-\s*/, '')).join('\n');
+        setProjectBrief(briefText);
       }
       if (outcomesMatch && outcomesMatch[1]) {
-        setDesiredOutcomesItems(stringToChecklist(outcomesMatch[1].trim()));
+        const outcomesText = outcomesMatch[1].trim().split('\n').map(line => line.replace(/^-\s*/, '')).join('\n');
+        setDesiredOutcomes(outcomesText);
       }
 
       toast({
@@ -146,6 +152,85 @@ OUTCOMES:
     }
   };
 
+  const addManualTask = () => {
+    if (!newTaskTitle.trim()) return;
+    
+    const task: ManualTask = {
+      id: crypto.randomUUID(),
+      title: newTaskTitle.trim(),
+      description: newTaskDesc.trim(),
+    };
+    
+    setManualTasks([...manualTasks, task]);
+    setNewTaskTitle("");
+    setNewTaskDesc("");
+  };
+
+  const removeManualTask = (id: string) => {
+    setManualTasks(manualTasks.filter(t => t.id !== id));
+  };
+
+  const handleRewriteTasks = async () => {
+    if (manualTasks.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please add at least one task first",
+      });
+      return;
+    }
+
+    setIsRewritingTasks(true);
+    try {
+      const tasksPrompt = manualTasks.map(t => `Title: ${t.title}\nDescription: ${t.description}`).join('\n\n');
+      
+      const { data, error } = await supabase.functions.invoke('lumo-chat', {
+        body: { 
+          message: `Rewrite these tasks in a professional, consistent tone and style. Keep the same meaning but make them clearer and more actionable:
+
+${tasksPrompt}
+
+Format each task as:
+TASK:
+Title: [rewritten title]
+Description: [rewritten description]
+---`
+        }
+      });
+
+      if (error) throw error;
+
+      const response = data.response;
+      const taskBlocks = response.split('---').filter((b: string) => b.trim());
+      
+      const rewrittenTasks = taskBlocks.map((block: string) => {
+        const titleMatch = block.match(/Title:\s*(.+)/);
+        const descMatch = block.match(/Description:\s*(.+)/s);
+        
+        return {
+          id: crypto.randomUUID(),
+          title: titleMatch?.[1]?.trim() || '',
+          description: descMatch?.[1]?.trim() || '',
+        };
+      }).filter(t => t.title);
+
+      setManualTasks(rewrittenTasks);
+      
+      toast({
+        title: "Tasks Rewritten",
+        description: "AI has rewritten your tasks in a consistent style",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to rewrite tasks",
+      });
+    } finally {
+      setIsRewritingTasks(false);
+    }
+  };
+
   const handleGenerateTasks = async () => {
     if (!idea?.title || !idea?.description) {
       toast({
@@ -156,7 +241,7 @@ OUTCOMES:
       return;
     }
 
-    if (!aiTag || projectBriefItems.length === 0 || desiredOutcomesItems.length === 0) {
+    if (!aiTag || !projectBrief.trim() || !desiredOutcomes.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -167,12 +252,11 @@ OUTCOMES:
 
     setIsGeneratingTasks(true);
     try {
-      // Pass project data directly (project doesn't exist in DB yet)
       const projectData = {
         title: idea.title,
         description: idea.description,
-        project_brief: checklistToString(projectBriefItems),
-        desired_outcomes: checklistToString(desiredOutcomesItems),
+        project_brief: projectBrief,
+        desired_outcomes: desiredOutcomes,
         workflow_step: 1
       };
 
@@ -183,11 +267,41 @@ OUTCOMES:
       if (error) throw error;
 
       if (data?.tasks) {
-        setGeneratedTasks(data.tasks);
+        // Generate activities for each task
+        const tasksWithActivities = await Promise.all(
+          data.tasks.map(async (task: any) => {
+            try {
+              const activityResponse = await supabase.functions.invoke('lumo-chat', {
+                body: {
+                  message: `Generate 3-5 specific, actionable activities (subtasks) for this task:
+                  
+Task: ${task.title}
+Description: ${task.description}
+
+Return only a simple bullet list of activities, one per line starting with "- "`
+                }
+              });
+
+              if (activityResponse.data) {
+                const activities = activityResponse.data.response
+                  .split('\n')
+                  .filter((line: string) => line.trim().startsWith('-'))
+                  .map((line: string) => line.replace(/^-\s*/, '').trim());
+                
+                return { ...task, activities };
+              }
+              return { ...task, activities: [] };
+            } catch {
+              return { ...task, activities: [] };
+            }
+          })
+        );
+
+        setGeneratedTasks(tasksWithActivities);
         setWorkflowInfo(data.workflowStep);
         toast({
           title: "Tasks Generated",
-          description: `Generated ${data.tasks.length} tasks. Review and approve to create them.`,
+          description: `Generated ${tasksWithActivities.length} tasks with activities`,
         });
       }
     } catch (error: any) {
@@ -212,11 +326,20 @@ OUTCOMES:
       return;
     }
 
-    if (projectBriefItems.length === 0 || desiredOutcomesItems.length === 0) {
+    if (!projectBrief.trim() || !desiredOutcomes.trim()) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Project Brief and Desired Outcomes are required",
+      });
+      return;
+    }
+
+    if (!dueDate) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Due date is required",
       });
       return;
     }
@@ -239,9 +362,9 @@ OUTCOMES:
         .insert({
           title: idea.title,
           description: idea.description,
-          project_brief: checklistToString(projectBriefItems),
-          desired_outcomes: checklistToString(desiredOutcomesItems),
-          due_date: dueDate || null,
+          project_brief: projectBrief,
+          desired_outcomes: desiredOutcomes,
+          due_date: dueDate,
           departments: idea.departments || [],
           owner_id: user.id,
           responsible_id: idea.responsible_id,
@@ -269,22 +392,26 @@ OUTCOMES:
 
       if (ideaError) throw ideaError;
 
-      // Insert approved tasks if any
-      if (generatedTasks.length > 0) {
-        const tasksToInsert = generatedTasks.map((task: any) => ({
+      // Combine all tasks
+      const allTasks = [...generatedTasks, ...manualTasks];
+
+      // Insert tasks if any
+      if (allTasks.length > 0) {
+        const tasksToInsert = allTasks.map((task: any) => ({
           title: task.title,
           description: task.description,
           idea_id: idea.id,
           project_id: project.id,
           owner_id: user.id,
           status: 'todo' as const,
-          responsible_role: task.responsible_role_name,
-          accountable_role: task.accountable_role_name
+          responsible_role: task.responsible_role_name || null,
+          accountable_role: task.accountable_role_name || null
         }));
 
-        const { error: tasksError } = await supabase
+        const { data: createdTasks, error: tasksError } = await supabase
           .from('tasks')
-          .insert(tasksToInsert);
+          .insert(tasksToInsert)
+          .select();
 
         if (tasksError) {
           console.error('Error creating tasks:', tasksError);
@@ -293,12 +420,28 @@ OUTCOMES:
             title: "Warning",
             description: "Project created but some tasks failed to save",
           });
+        } else if (createdTasks) {
+          // Insert activities for tasks that have them
+          for (let i = 0; i < createdTasks.length; i++) {
+            const task = createdTasks[i];
+            const sourceTask = allTasks[i];
+            
+            if (sourceTask.activities && sourceTask.activities.length > 0) {
+              const activitiesToInsert = sourceTask.activities.map((activity: string) => ({
+                task_id: task.id,
+                title: activity,
+                completed: false
+              }));
+
+              await supabase.from('task_activities').insert(activitiesToInsert);
+            }
+          }
         }
       }
 
       toast({
         title: "Success!",
-        description: `Project ${projectNumber} created${generatedTasks.length > 0 ? ` with ${generatedTasks.length} tasks` : ''} and moved to Business Innovation backlog`,
+        description: `Project ${projectNumber} created${allTasks.length > 0 ? ` with ${allTasks.length} tasks` : ''} and moved to Business Innovation backlog`,
       });
       
       // Close both dialogs and refresh
@@ -400,37 +543,37 @@ OUTCOMES:
           </div>
 
           <div className="space-y-2">
-            <Label>Project Brief (Expected Features Checklist) *</Label>
-            <div className="border rounded-md p-4 max-h-64 overflow-y-auto">
-              <ChecklistInput
-                items={projectBriefItems}
-                onChange={setProjectBriefItems}
-                placeholder="Add expected feature..."
-                disabled={aiGenerating}
-              />
-            </div>
+            <Label>Project Brief (Expected Features) *</Label>
+            <Textarea
+              value={projectBrief}
+              onChange={(e) => setProjectBrief(e.target.value)}
+              placeholder="List expected features (one per line)"
+              rows={6}
+              disabled={aiGenerating}
+              className="resize-none"
+            />
             <p className="text-xs text-muted-foreground">
-              List expected features as checklist items - these will be converted to engineering tasks
+              List expected features - these will guide engineering task generation
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Desired Outcomes (Checklist) *</Label>
-            <div className="border rounded-md p-4 max-h-64 overflow-y-auto">
-              <ChecklistInput
-                items={desiredOutcomesItems}
-                onChange={setDesiredOutcomesItems}
-                placeholder="Add desired outcome..."
-                disabled={aiGenerating}
-              />
-            </div>
+            <Label>Desired Outcomes *</Label>
+            <Textarea
+              value={desiredOutcomes}
+              onChange={(e) => setDesiredOutcomes(e.target.value)}
+              placeholder="List desired outcomes (one per line)"
+              rows={4}
+              disabled={aiGenerating}
+              className="resize-none"
+            />
             <p className="text-xs text-muted-foreground">
-              List desired outcomes as checklist items
+              List desired outcomes for this project
             </p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="due_date">Due Date</Label>
+            <Label htmlFor="due_date">Due Date *</Label>
             <div className="relative">
               <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -440,6 +583,7 @@ OUTCOMES:
                 onChange={(e) => setDueDate(e.target.value)}
                 className="pl-10"
                 disabled={aiGenerating}
+                required
               />
             </div>
           </div>
@@ -472,7 +616,7 @@ OUTCOMES:
                 type="button"
                 variant="outline"
                 onClick={handleGenerateTasks}
-                disabled={isGeneratingTasks || !aiTag || projectBriefItems.length === 0}
+                disabled={isGeneratingTasks || !aiTag || !projectBrief.trim()}
                 className="border-primary text-primary hover:bg-primary/10"
               >
                 {isGeneratingTasks ? (
@@ -514,46 +658,138 @@ OUTCOMES:
                     </Button>
                   </div>
                   
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {generatedTasks.map((task: any, index: number) => (
-                      <Card key={index} className="bg-muted/50">
-                        <CardContent className="pt-3 space-y-2">
-                          <p className="text-sm font-medium">{task.title}</p>
-                          <p className="text-xs text-muted-foreground">{task.description}</p>
-                          <div className="flex gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              <strong>R:</strong> {task.responsible_role_name}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              <strong>A:</strong> {task.accountable_role_name}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                   <div className="space-y-2 max-h-64 overflow-y-auto">
+                     {generatedTasks.map((task: any, index: number) => (
+                       <Card key={index} className="bg-muted/50">
+                         <CardContent className="pt-3 space-y-2">
+                           <p className="text-sm font-medium">{task.title}</p>
+                           <p className="text-xs text-muted-foreground">{task.description}</p>
+                           <div className="flex gap-2 flex-wrap">
+                             <Badge variant="outline" className="text-xs">
+                               <strong>R:</strong> {task.responsible_role_name}
+                             </Badge>
+                             <Badge variant="outline" className="text-xs">
+                               <strong>A:</strong> {task.accountable_role_name}
+                             </Badge>
+                           </div>
+                           {task.activities && task.activities.length > 0 && (
+                             <div className="mt-2 pl-2 border-l-2 border-border">
+                               <p className="text-xs font-medium mb-1">Activities:</p>
+                               <ul className="text-xs text-muted-foreground space-y-0.5">
+                                 {task.activities.map((activity: string, i: number) => (
+                                   <li key={i}>• {activity}</li>
+                                 ))}
+                               </ul>
+                             </div>
+                           )}
+                         </CardContent>
+                       </Card>
+                     ))}
+                   </div>
                   
-                  <div className="flex items-start gap-2 text-xs text-muted-foreground bg-primary/10 p-2 rounded">
-                    <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
-                    <p>
-                      These tasks will be created when you convert to project. You can edit them later in the Task Lists.
-                    </p>
+                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-primary/10 p-2 rounded">
+                     <CheckCircle2 className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
+                     <p>
+                       These tasks with activities will be created when you convert to project.
+                     </p>
+                   </div>
+                 </CardContent>
+               </Card>
+             )}
+
+            {/* Manual Task Addition */}
+            <div className="space-y-3 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <Label className="text-base">Manual Tasks (Optional)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRewriteTasks}
+                  disabled={isRewritingTasks || manualTasks.length === 0}
+                  className="border-primary text-primary hover:bg-primary/10"
+                  size="sm"
+                >
+                  {isRewritingTasks ? (
+                    <>
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Rewriting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-3 w-3" />
+                      AI Rewrite
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <Card className="border-border">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Task title"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                    />
+                    <Textarea
+                      placeholder="Task description"
+                      value={newTaskDesc}
+                      onChange={(e) => setNewTaskDesc(e.target.value)}
+                      rows={2}
+                      className="resize-none"
+                    />
+                    <Button
+                      type="button"
+                      onClick={addManualTask}
+                      disabled={!newTaskTitle.trim()}
+                      size="sm"
+                      className="w-full"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Task
+                    </Button>
                   </div>
+
+                  {manualTasks.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {manualTasks.map((task) => (
+                        <Card key={task.id} className="bg-muted/50">
+                          <CardContent className="pt-3 pb-3 pr-3 flex justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{task.title}</p>
+                              {task.description && (
+                                <p className="text-xs text-muted-foreground">{task.description}</p>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeManualTask(task.id)}
+                              className="h-8 w-8 flex-shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </div>
+            </div>
+           </div>
+         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={handleConvert} disabled={loading || !aiTag || projectBriefItems.length === 0 || desiredOutcomesItems.length === 0}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Convert to Project
-          </Button>
-        </div>
+         <div className="flex justify-end gap-2">
+           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+             Cancel
+           </Button>
+           <Button onClick={handleConvert} disabled={loading || !aiTag || !projectBrief.trim() || !desiredOutcomes.trim() || !dueDate}>
+             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+             Convert to Project
+           </Button>
+         </div>
       </DialogContent>
     </Dialog>
   );

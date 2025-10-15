@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      archived_ideas: {
+        Row: {
+          accountable_id: string | null
+          archived_at: string
+          category: string | null
+          consulted_ids: string[] | null
+          created_at: string
+          departments: string[] | null
+          description: string
+          id: string
+          idea_id: string | null
+          informed_ids: string[] | null
+          owner_id: string | null
+          possible_outcome: string
+          responsible_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accountable_id?: string | null
+          archived_at?: string
+          category?: string | null
+          consulted_ids?: string[] | null
+          created_at?: string
+          departments?: string[] | null
+          description: string
+          id?: string
+          idea_id?: string | null
+          informed_ids?: string[] | null
+          owner_id?: string | null
+          possible_outcome: string
+          responsible_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accountable_id?: string | null
+          archived_at?: string
+          category?: string | null
+          consulted_ids?: string[] | null
+          created_at?: string
+          departments?: string[] | null
+          description?: string
+          id?: string
+          idea_id?: string | null
+          informed_ids?: string[] | null
+          owner_id?: string | null
+          possible_outcome?: string
+          responsible_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
