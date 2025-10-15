@@ -273,11 +273,13 @@ OUTCOMES:
       if (generatedTasks.length > 0) {
         const tasksToInsert = generatedTasks.map((task: any) => ({
           title: task.title,
-          description: `${task.description}\n\n**Responsible:** ${task.responsible_role_name}\n**Accountable:** ${task.accountable_role_name}`,
+          description: task.description,
           idea_id: idea.id,
           project_id: project.id,
           owner_id: user.id,
-          status: 'todo' as const
+          status: 'todo' as const,
+          responsible_role: task.responsible_role_name,
+          accountable_role: task.accountable_role_name
         }));
 
         const { error: tasksError } = await supabase

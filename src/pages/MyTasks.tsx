@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Calendar, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AIChatZone from "@/components/AIChatZone";
+import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 
 interface Task {
   id: string;
@@ -15,6 +16,7 @@ interface Task {
   description: string | null;
   status: 'todo' | 'in_progress' | 'blocked' | 'done' | 'archived';
   due_date: string | null;
+  start_date?: string | null;
   assigned_to: string | null;
   owner_id: string | null;
   idea_id: string | null;
@@ -23,12 +25,16 @@ interface Task {
   task_id?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   progress?: number;
+  responsible_role?: string | null;
+  accountable_role?: string | null;
 }
 
 export default function MyTasks() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectTitle, setProjectTitle] = useState<string>("");
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -95,49 +101,35 @@ export default function MyTasks() {
     }
   };
 
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setIsDialogOpen(true);
+  };
+
+  const handleTaskUpdate = () => {
+    fetchMyTasks();
+  };
+
   const renderTaskCard = (task: Task) => (
-    <Card key={task.id} className="hover:shadow-hover transition-all mb-3">
+    <Card 
+      key={task.id} 
+      className="hover:shadow-hover transition-all mb-3 cursor-pointer"
+      onClick={() => handleTaskClick(task)}
+    >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              {task.task_id && <Badge variant="outline">{task.task_id}</Badge>}
-              {task.priority && (
-                <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                  {task.priority}
-                </Badge>
-              )}
-            </div>
-            <CardTitle className="text-base">{task.title}</CardTitle>
-          </div>
-        </div>
+        <CardTitle className="text-base">{task.title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {task.description && (
-          <p className="text-sm text-muted-foreground">{task.description}</p>
+      <CardContent className="space-y-2">
+        {task.responsible_role && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">Responsible: </span>
+            <span className="font-medium">{task.responsible_role}</span>
+          </div>
         )}
-
-        <div className="flex items-center gap-6 text-sm">
-          {task.due_date && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
-            </div>
-          )}
-        </div>
-
-        {task.progress !== undefined && task.progress !== null && (
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">Progress</span>
-              <span className="text-xs font-semibold">{task.progress}%</span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-              <div 
-                className="bg-primary h-full transition-all"
-                style={{ width: `${task.progress}%` }}
-              />
-            </div>
+        {task.accountable_role && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">Accountable: </span>
+            <span className="font-medium">{task.accountable_role}</span>
           </div>
         )}
       </CardContent>
@@ -262,6 +254,13 @@ export default function MyTasks() {
           </div>
         </div>
       </main>
+
+      <TaskDetailDialog
+        task={selectedTask}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        onTaskUpdate={handleTaskUpdate}
+      />
 
       <AIChatZone />
     </div>
