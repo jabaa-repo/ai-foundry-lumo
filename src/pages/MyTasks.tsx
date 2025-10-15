@@ -156,9 +156,6 @@ export default function MyTasks() {
               <h1 className="text-2xl font-bold text-primary">
                 {projectTitle ? `${projectTitle} - Tasks` : 'Tasks'}
               </h1>
-              <p className="text-xs text-muted-foreground">
-                {user?.user_metadata?.display_name || user?.email}
-              </p>
             </div>
           </div>
           <Badge variant="outline" className="border-primary text-primary font-semibold">
