@@ -43,17 +43,16 @@ export default function MyTasks() {
   }, [navigate]);
 
   const fetchMyTasks = async (userId: string) => {
-    // Fetch all tasks (unassigned and assigned to user)
+    // Fetch all tasks
     const { data, error } = await supabase
       .from('tasks')
-      .select('*')
-      .or(`assigned_to.is.null,assigned_to.eq.${userId}`);
+      .select('*');
 
     if (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch your tasks",
+        description: "Failed to fetch tasks",
       });
     } else {
       setTasks(data || []);
@@ -136,7 +135,7 @@ export default function MyTasks() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-primary">My Task List</h1>
+              <h1 className="text-2xl font-bold text-primary">Tasks</h1>
               <p className="text-xs text-muted-foreground">
                 {user?.user_metadata?.display_name || user?.email}
               </p>
