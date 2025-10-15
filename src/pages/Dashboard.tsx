@@ -23,6 +23,7 @@ interface Idea {
   status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
   created_at: string;
+  departments?: string[];
 }
 
 export default function Dashboard() {

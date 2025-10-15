@@ -120,6 +120,7 @@ export type Database = {
           category: string | null
           consulted_ids: string[] | null
           created_at: string
+          departments: string[] | null
           description: string
           id: string
           idea_id: string | null
@@ -138,6 +139,7 @@ export type Database = {
           category?: string | null
           consulted_ids?: string[] | null
           created_at?: string
+          departments?: string[] | null
           description: string
           id?: string
           idea_id?: string | null
@@ -156,6 +158,7 @@ export type Database = {
           category?: string | null
           consulted_ids?: string[] | null
           created_at?: string
+          departments?: string[] | null
           description?: string
           id?: string
           idea_id?: string | null

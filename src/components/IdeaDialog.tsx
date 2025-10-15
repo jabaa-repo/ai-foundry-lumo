@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Sparkles } from "lucide-react";
+import { Loader2, Rocket, Sparkles, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
 
 interface Idea {
@@ -18,7 +18,17 @@ interface Idea {
   possible_outcome: string;
   status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
+  departments?: string[];
 }
+
+const DEPARTMENT_OPTIONS = [
+  "Marketing",
+  "Business Operations",
+  "Card Banking",
+  "Technology",
+  "Customer Service",
+  "Finance",
+];
 
 interface IdeaDialogProps {
   idea: Idea | null;
@@ -33,17 +43,32 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [aiLoading, setAiLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [newDepartment, setNewDepartment] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
     if (idea) {
       setTitle(idea.title);
       setDescription(idea.description);
+      setDepartments(idea.departments || []);
     } else {
       setTitle("");
       setDescription("");
+      setDepartments([]);
     }
   }, [idea]);
+
+  const addDepartment = (dept: string) => {
+    if (dept && !departments.includes(dept)) {
+      setDepartments([...departments, dept]);
+      setNewDepartment("");
+    }
+  };
+
+  const removeDepartment = (dept: string) => {
+    setDepartments(departments.filter(d => d !== dept));
+  };
 
   const handleAIRewrite = async () => {
     if (!title.trim() && !description.trim()) {
@@ -130,6 +155,7 @@ DESCRIPTION: [improved description]`
           .update({
             title,
             description,
+            departments,
           })
           .eq('id', idea.id);
 
@@ -150,6 +176,7 @@ DESCRIPTION: [improved description]`
             status: 'inbox',
             user_id: user.id,
             owner_id: user.id,
+            departments,
           }]);
 
         if (error) throw error;
@@ -205,6 +232,32 @@ DESCRIPTION: [improved description]`
               placeholder="Describe your idea"
               className="border-border resize-none"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Departments Affected</Label>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {DEPARTMENT_OPTIONS.map((dept) => (
+                <Badge
+                  key={dept}
+                  variant={departments.includes(dept) ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => departments.includes(dept) ? removeDepartment(dept) : addDepartment(dept)}
+                >
+                  {dept}
+                </Badge>
+              ))}
+            </div>
+            {departments.length > 0 && (
+              <div className="flex gap-1 flex-wrap">
+                {departments.map((dept) => (
+                  <Badge key={dept} variant="secondary" className="gap-1">
+                    {dept}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => removeDepartment(dept)} />
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
           <Button

@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckSquare, User } from "lucide-react";
+import { CheckSquare, User, Calendar } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
 
 interface Task {
   id: string;
@@ -20,8 +21,15 @@ interface Idea {
   status: 'inbox' | 'business_backlog' | 'engineering_backlog' | 'outcomes_backlog' | 'archived';
   category: string | null;
   created_at: string;
+  owner_id?: string;
   responsible_id?: string;
   accountable_id?: string;
+  departments?: string[];
+}
+
+interface Profile {
+  id: string;
+  display_name: string | null;
 }
 
 interface KanbanBoardProps {
@@ -38,6 +46,7 @@ const COLUMNS = [
 
 export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
   const [ideaTasks, setIdeaTasks] = useState<Record<string, Task[]>>({});
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -58,8 +67,30 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
       }
     };
 
+    const fetchProfiles = async () => {
+      const ownerIds = ideas
+        .map(i => i.owner_id)
+        .filter((id): id is string => !!id);
+      
+      if (ownerIds.length === 0) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name')
+        .in('id', ownerIds);
+
+      if (data) {
+        const profilesMap: Record<string, Profile> = {};
+        data.forEach(profile => {
+          profilesMap[profile.id] = profile;
+        });
+        setProfiles(profilesMap);
+      }
+    };
+
     if (ideas.length > 0) {
       fetchTasks();
+      fetchProfiles();
     }
   }, [ideas]);
   return (
@@ -103,6 +134,31 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
                         {idea.description}
                       </p>
                       
+                      {/* Owner and Date */}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground pt-1">
+                        {idea.owner_id && profiles[idea.owner_id] && (
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span>{profiles[idea.owner_id].display_name || 'Unknown'}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatDistanceToNow(new Date(idea.created_at), { addSuffix: true })}</span>
+                        </div>
+                      </div>
+
+                      {/* Department Tags */}
+                      {idea.departments && idea.departments.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {idea.departments.map((dept, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {dept}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      
                       {tasks.length > 0 && (
                         <div className="flex items-center gap-2">
                           <CheckSquare className="h-3 w-3 text-muted-foreground" />
@@ -110,13 +166,6 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
                             {completedTasks}/{tasks.length} tasks
                           </span>
                           <Progress value={progress} className="h-1.5 flex-1" />
-                        </div>
-                      )}
-                      
-                      {(idea.responsible_id || idea.accountable_id) && (
-                        <div className="flex items-center gap-1 pt-1">
-                          <User className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">RACI assigned</span>
                         </div>
                       )}
                     </CardContent>
