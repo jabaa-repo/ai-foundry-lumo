@@ -128,6 +128,7 @@ export type Database = {
           owner: string | null
           owner_id: string | null
           possible_outcome: string
+          project_id: string | null
           responsible_id: string | null
           status: Database["public"]["Enums"]["idea_status"]
           title: string
@@ -147,6 +148,7 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           possible_outcome: string
+          project_id?: string | null
           responsible_id?: string | null
           status?: Database["public"]["Enums"]["idea_status"]
           title: string
@@ -166,13 +168,22 @@ export type Database = {
           owner?: string | null
           owner_id?: string | null
           possible_outcome?: string
+          project_id?: string | null
           responsible_id?: string | null
           status?: Database["public"]["Enums"]["idea_status"]
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ideas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

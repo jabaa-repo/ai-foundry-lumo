@@ -149,12 +149,11 @@ OUTCOMES: [desired outcomes]`
 
       if (projectError) throw projectError;
 
-      // Update idea to mark as converted
+      // Update idea to mark as converted and link to project
       const { error: ideaError } = await supabase
         .from('ideas')
         .update({
-          is_project: true,
-          project_number: projectNumber,
+          project_id: project.id,
           status: 'inbox' as any
         } as any)
         .eq('id', idea.id);
@@ -181,7 +180,7 @@ OUTCOMES: [desired outcomes]`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] bg-card border-border">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] bg-card border-border overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Rocket className="h-5 w-5 text-primary" />
