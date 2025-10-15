@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket } from "lucide-react";
+import { Loader2, Rocket, Sparkles } from "lucide-react";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
 
 interface Idea {
@@ -30,6 +30,7 @@ interface IdeaDialogProps {
 export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: IdeaDialogProps) {
   const [loading, setLoading] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const { toast } = useToast();
@@ -43,6 +44,75 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setDescription("");
     }
   }, [idea]);
+
+  const handleAIRewrite = async () => {
+    if (!title.trim() && !description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a title or description first",
+      });
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to use AI assistance",
+      });
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('lumo-chat', {
+        body: { 
+          message: `Improve and rewrite this idea to make it clearer and more compelling:
+          
+Title: ${title}
+Description: ${description}
+
+Please provide:
+1. An improved title (concise and clear)
+2. An enhanced description (2-3 sentences, professional and actionable)
+
+Format your response as:
+TITLE: [improved title]
+DESCRIPTION: [improved description]`
+        }
+      });
+
+      if (error) throw error;
+
+      const response = data.response;
+      
+      // Parse the AI response
+      const titleMatch = response.match(/TITLE:\s*(.+?)(?=\n|DESCRIPTION:|$)/s);
+      const descMatch = response.match(/DESCRIPTION:\s*(.+?)$/s);
+      
+      if (titleMatch && titleMatch[1]) {
+        setTitle(titleMatch[1].trim());
+      }
+      if (descMatch && descMatch[1]) {
+        setDescription(descMatch[1].trim());
+      }
+
+      toast({
+        title: "AI Assistant",
+        description: "Content improved! Feel free to edit further.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to get AI assistance",
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,15 +207,36 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
             />
           </div>
 
-          <div className="flex justify-between items-center pt-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAIRewrite}
+            disabled={aiLoading}
+            className="w-full border-primary/50 hover:bg-primary/10"
+          >
+            {aiLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                AI is improving your content...
+              </>
+            ) : (
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Improve with AI Assistant
+              </>
+            )}
+          </Button>
+
+          <div className="flex justify-between items-center pt-4 border-t border-border">
             {idea && !(idea as any).is_project && (
               <Button
                 type="button"
-                variant="outline"
+                variant="default"
                 onClick={() => setShowConvertDialog(true)}
+                className="bg-primary hover:bg-primary-hover"
               >
                 <Rocket className="mr-2 h-4 w-4" />
-                Convert to Project
+                Move to Project
               </Button>
             )}
             <div className="flex gap-2 ml-auto">
