@@ -361,14 +361,15 @@ DESCRIPTION: [improved description]`
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] bg-card border-border">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col bg-card border-border">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-foreground">
             {idea ? "Edit Idea" : "Add New Idea"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="space-y-4 overflow-y-auto pr-2 flex-1">
+            <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
             <Input
               id="title"
@@ -417,12 +418,12 @@ DESCRIPTION: [improved description]`
                 )}
               </Button>
             </div>
-            <div className="flex gap-2 flex-wrap mb-2">
+            <div className="flex gap-2 flex-wrap max-h-32 overflow-y-auto p-2 border rounded-md">
               {DEPARTMENT_OPTIONS.map((dept) => (
                 <Badge
                   key={dept}
                   variant={departments.includes(dept) ? "default" : "outline"}
-                  className="cursor-pointer"
+                  className="cursor-pointer flex-shrink-0"
                   onClick={() => departments.includes(dept) ? removeDepartment(dept) : addDepartment(dept)}
                 >
                   {dept}
@@ -453,9 +454,9 @@ DESCRIPTION: [improved description]`
               </Button>
             </div>
             {departments.length > 0 && (
-              <div className="flex gap-1 flex-wrap">
+              <div className="flex gap-1 flex-wrap max-h-24 overflow-y-auto p-2 border rounded-md bg-muted/30">
                 {departments.map((dept) => (
-                  <Badge key={dept} variant="secondary" className="gap-1">
+                  <Badge key={dept} variant="secondary" className="gap-1 flex-shrink-0">
                     {dept}
                     <X className="h-3 w-3 cursor-pointer" onClick={() => removeDepartment(dept)} />
                   </Badge>
@@ -483,8 +484,9 @@ DESCRIPTION: [improved description]`
               </>
             )}
           </Button>
+        </div>
 
-          <div className="flex justify-between items-center pt-4 border-t border-border gap-2">
+        <div className="flex justify-between items-center pt-4 border-t border-border gap-2 flex-shrink-0">
             <div className="flex gap-2">
               {idea && !(idea as any).is_project && (
                 <>
