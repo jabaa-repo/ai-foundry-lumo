@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
@@ -28,25 +28,43 @@ interface Task {
 export default function MyTasks() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projectTitle, setProjectTitle] = useState<string>("");
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const projectId = searchParams.get('projectId');
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchMyTasks(session.user.id);
+        fetchMyTasks();
       } else {
         navigate("/auth");
       }
     });
-  }, [navigate]);
+  }, [navigate, projectId]);
 
-  const fetchMyTasks = async (userId: string) => {
-    // Fetch all tasks
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*');
+  const fetchMyTasks = async () => {
+    // Fetch tasks for the specific project
+    let query = supabase.from('tasks').select('*');
+    
+    if (projectId) {
+      query = query.eq('project_id', projectId);
+      
+      // Fetch project title
+      const { data: projectData } = await supabase
+        .from('projects')
+        .select('title')
+        .eq('id', projectId)
+        .single();
+      
+      if (projectData) {
+        setProjectTitle(projectData.title);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({
@@ -135,7 +153,9 @@ export default function MyTasks() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-primary">Tasks</h1>
+              <h1 className="text-2xl font-bold text-primary">
+                {projectTitle ? `${projectTitle} - Tasks` : 'Tasks'}
+              </h1>
               <p className="text-xs text-muted-foreground">
                 {user?.user_metadata?.display_name || user?.email}
               </p>

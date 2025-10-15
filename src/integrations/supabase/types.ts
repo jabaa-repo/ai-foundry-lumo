@@ -293,6 +293,7 @@ export type Database = {
           id: string
           idea_id: string | null
           owner_id: string | null
+          project_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -305,6 +306,7 @@ export type Database = {
           id?: string
           idea_id?: string | null
           owner_id?: string | null
+          project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -317,6 +319,7 @@ export type Database = {
           id?: string
           idea_id?: string | null
           owner_id?: string | null
+          project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
@@ -327,6 +330,13 @@ export type Database = {
             columns: ["idea_id"]
             isOneToOne: false
             referencedRelation: "ideas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]

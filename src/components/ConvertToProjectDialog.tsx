@@ -275,6 +275,7 @@ OUTCOMES:
           title: task.title,
           description: `${task.description}\n\n**Responsible:** ${task.responsible_role_name}\n**Accountable:** ${task.accountable_role_name}`,
           idea_id: project.id,
+          project_id: project.id,
           owner_id: user.id,
           status: 'todo' as const
         }));

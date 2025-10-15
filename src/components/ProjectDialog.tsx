@@ -137,7 +137,7 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
   };
 
   const handleViewTasks = () => {
-    navigate('/my-tasks');
+    navigate(`/my-tasks?projectId=${project?.id}`);
     onOpenChange(false);
   };
 
