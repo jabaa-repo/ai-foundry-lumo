@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Calendar } from "lucide-react";
+import { Loader2, Rocket, Calendar, Paperclip, X } from "lucide-react";
 
 interface ConvertToProjectDialogProps {
   idea: any;
@@ -22,7 +22,38 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
   const [desiredOutcomes, setDesiredOutcomes] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [fileContent, setFileContent] = useState<string>("");
   const { toast } = useToast();
+
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Limit file size to 5MB
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please attach a file smaller than 5MB",
+      });
+      return;
+    }
+
+    setAttachedFile(file);
+    
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setFileContent(event.target?.result as string);
+    };
+    reader.readAsText(file);
+  };
+
+  const removeFile = () => {
+    setAttachedFile(null);
+    setFileContent("");
+  };
 
   const handleGenerateAI = async () => {
     if (!idea?.title || !idea?.description) {
@@ -46,20 +77,28 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
 
     setAiGenerating(true);
     try {
+      const fileContext = fileContent ? `\n\nAttached File Content:\n${fileContent}` : '';
+      
       const { data, error } = await supabase.functions.invoke('lumo-chat', {
         body: { 
           message: `Based on this idea, generate:
 1. A single-word tag (in UPPERCASE) that captures the essence of this project
-2. A comprehensive project brief (2-3 paragraphs)
-3. Clear desired outcomes (3-5 bullet points)
+2. A project brief as a checklist of expected features (5-8 items) - these will be converted to engineering tasks later
+3. Desired outcomes as a checklist (3-5 items)
 
 Idea Title: ${idea.title}
-Idea Description: ${idea.description}
+Idea Description: ${idea.description}${fileContext}
 
 Format your response as:
 TAG: [single uppercase word]
-BRIEF: [project brief]
-OUTCOMES: [desired outcomes]`
+BRIEF:
+- [ ] Feature 1
+- [ ] Feature 2
+...
+OUTCOMES:
+- [ ] Outcome 1
+- [ ] Outcome 2
+...`
         }
       });
 
@@ -196,6 +235,43 @@ OUTCOMES: [desired outcomes]`
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Attach File (Optional)</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                onChange={handleFileAttach}
+                accept=".txt,.md,.doc,.docx,.pdf"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('file-upload')?.click()}
+                disabled={aiGenerating}
+                className="flex-1"
+              >
+                <Paperclip className="mr-2 h-4 w-4" />
+                {attachedFile ? attachedFile.name : "Attach File for AI Context"}
+              </Button>
+              {attachedFile && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={removeFile}
+                  disabled={aiGenerating}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Attach a file to provide additional context for AI generation (max 5MB)
+            </p>
+          </div>
+
           <Button
             type="button"
             onClick={handleGenerateAI}
@@ -230,27 +306,33 @@ OUTCOMES: [desired outcomes]`
           </div>
 
           <div className="space-y-2">
-            <Label>Project Brief *</Label>
+            <Label>Project Brief (Expected Features Checklist) *</Label>
             <Textarea
-              placeholder="Comprehensive project description..."
+              placeholder="- [ ] Feature 1&#10;- [ ] Feature 2&#10;- [ ] Feature 3"
               value={projectBrief}
               onChange={(e) => setProjectBrief(e.target.value)}
-              rows={4}
+              rows={6}
               disabled={aiGenerating}
-              className="resize-none"
+              className="resize-none font-mono text-sm"
             />
+            <p className="text-xs text-muted-foreground">
+              List expected features as checklist items - these will be converted to engineering tasks
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label>Desired Outcomes *</Label>
+            <Label>Desired Outcomes (Checklist) *</Label>
             <Textarea
-              placeholder="Expected results and success criteria..."
+              placeholder="- [ ] Outcome 1&#10;- [ ] Outcome 2&#10;- [ ] Outcome 3"
               value={desiredOutcomes}
               onChange={(e) => setDesiredOutcomes(e.target.value)}
-              rows={4}
+              rows={5}
               disabled={aiGenerating}
-              className="resize-none"
+              className="resize-none font-mono text-sm"
             />
+            <p className="text-xs text-muted-foreground">
+              List desired outcomes as checklist items
+            </p>
           </div>
 
           <div className="space-y-2">
