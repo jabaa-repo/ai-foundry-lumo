@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, User, CheckSquare, TrendingUp, Code, Target } from "lucide-react";
 import { format } from "date-fns";
 import WorkflowStepIndicator from "./WorkflowStepIndicator";
+import { ChecklistInput, stringToChecklist, checklistToString } from "@/components/ChecklistInput";
+import { useToast } from "@/hooks/use-toast";
 
 interface Profile {
   id: string;
@@ -22,11 +24,62 @@ interface ProjectDialogProps {
 
 export default function ProjectDialog({ project, open, onOpenChange }: ProjectDialogProps) {
   const [owner, setOwner] = useState<Profile | null>(null);
+  const [briefItems, setBriefItems] = useState(() => 
+    project?.project_brief ? stringToChecklist(project.project_brief) : []
+  );
+  const [outcomesItems, setOutcomesItems] = useState(() => 
+    project?.desired_outcomes ? stringToChecklist(project.desired_outcomes) : []
+  );
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleBriefChange = async (items: typeof briefItems) => {
+    setBriefItems(items);
+    if (project?.id) {
+      const { error } = await supabase
+        .from('projects')
+        .update({ project_brief: checklistToString(items) })
+        .eq('id', project.id);
+      
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to update project brief",
+        });
+      }
+    }
+  };
+
+  const handleOutcomesChange = async (items: typeof outcomesItems) => {
+    setOutcomesItems(items);
+    if (project?.id) {
+      const { error } = await supabase
+        .from('projects')
+        .update({ desired_outcomes: checklistToString(items) })
+        .eq('id', project.id);
+      
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to update desired outcomes",
+        });
+      }
+    }
+  };
 
   useEffect(() => {
     if (project?.owner_id) {
       fetchOwner(project.owner_id);
+    }
+    
+    // Update checklist items when project changes
+    if (project?.project_brief) {
+      setBriefItems(stringToChecklist(project.project_brief));
+    }
+    if (project?.desired_outcomes) {
+      setOutcomesItems(stringToChecklist(project.desired_outcomes));
     }
   }, [project]);
 
@@ -108,25 +161,31 @@ export default function ProjectDialog({ project, open, onOpenChange }: ProjectDi
           )}
 
           {/* Project Brief */}
-          {project.project_brief && (
+          {briefItems.length > 0 && (
             <Card>
               <CardContent className="pt-4">
-                <p className="text-sm font-semibold mb-2">Project Brief</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {project.project_brief}
-                </p>
+                <p className="text-sm font-semibold mb-3">Project Brief (Expected Features)</p>
+                <ChecklistInput
+                  items={briefItems}
+                  onChange={handleBriefChange}
+                  placeholder="Add feature..."
+                  disabled={false}
+                />
               </CardContent>
             </Card>
           )}
 
           {/* Desired Outcomes */}
-          {project.desired_outcomes && (
+          {outcomesItems.length > 0 && (
             <Card>
               <CardContent className="pt-4">
-                <p className="text-sm font-semibold mb-2">Desired Outcomes</p>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {project.desired_outcomes}
-                </p>
+                <p className="text-sm font-semibold mb-3">Desired Outcomes</p>
+                <ChecklistInput
+                  items={outcomesItems}
+                  onChange={handleOutcomesChange}
+                  placeholder="Add outcome..."
+                  disabled={false}
+                />
               </CardContent>
             </Card>
           )}
