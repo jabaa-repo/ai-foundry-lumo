@@ -228,11 +228,16 @@ export default function Dashboard() {
       />
 
       {/* Project Dialog */}
-      <ProjectDialog
-        project={selectedProject}
-        open={showProjectDialog}
-        onOpenChange={setShowProjectDialog}
-      />
+          <ProjectDialog
+            project={selectedProject}
+            open={showProjectDialog}
+            onOpenChange={setShowProjectDialog}
+            onProjectDeleted={() => {
+              setShowProjectDialog(false);
+              setSelectedProject(null);
+              // Trigger a refresh of the projects list if needed
+            }}
+          />
     </div>
   );
 }

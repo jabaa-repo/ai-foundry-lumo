@@ -5,11 +5,21 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Calendar, User, CheckSquare, TrendingUp, Code, Target } from "lucide-react";
+import { Calendar, User, CheckSquare, TrendingUp, Code, Target, Trash2, Archive } from "lucide-react";
 import { format } from "date-fns";
 import WorkflowStepIndicator from "./WorkflowStepIndicator";
 import { ChecklistInput, stringToChecklist, checklistToString } from "@/components/ChecklistInput";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Profile {
   id: string;
@@ -20,18 +30,31 @@ interface ProjectDialogProps {
   project: any;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onProjectDeleted?: () => void;
 }
 
-export default function ProjectDialog({ project, open, onOpenChange }: ProjectDialogProps) {
+export default function ProjectDialog({ project, open, onOpenChange, onProjectDeleted }: ProjectDialogProps) {
   const [owner, setOwner] = useState<Profile | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [briefItems, setBriefItems] = useState(() => 
     project?.project_brief ? stringToChecklist(project.project_brief) : []
   );
   const [outcomesItems, setOutcomesItems] = useState(() => 
     project?.desired_outcomes ? stringToChecklist(project.desired_outcomes) : []
   );
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    fetchCurrentUser();
+  }, []);
 
   const handleBriefChange = async (items: typeof briefItems) => {
     setBriefItems(items);
@@ -117,6 +140,70 @@ export default function ProjectDialog({ project, open, onOpenChange }: ProjectDi
     navigate('/my-tasks');
     onOpenChange(false);
   };
+
+  const handleDeletePermanently = async () => {
+    if (!project?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Project Deleted",
+        description: "The project has been permanently deleted.",
+      });
+
+      onOpenChange(false);
+      onProjectDeleted?.();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to delete project",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!project?.id) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ status: 'archived' })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Project Archived",
+        description: "The project has been moved to the archive.",
+      });
+
+      onOpenChange(false);
+      onProjectDeleted?.();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to archive project",
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowArchiveDialog(false);
+    }
+  };
+
+  const isOwner = currentUserId && project?.owner_id === currentUserId;
 
   if (!project) return null;
 
@@ -228,16 +315,85 @@ export default function ProjectDialog({ project, open, onOpenChange }: ProjectDi
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
-            <Button onClick={handleViewTasks} className="bg-primary hover:bg-primary-hover">
-              <CheckSquare className="mr-2 h-4 w-4" />
-              View Task Lists
-            </Button>
+          <div className="flex justify-between gap-2 pt-4 border-t border-border">
+            <div className="flex gap-2">
+              {isOwner && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowArchiveDialog(true)}
+                    className="text-muted-foreground"
+                  >
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                </>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+              <Button onClick={handleViewTasks} className="bg-primary hover:bg-primary-hover">
+                <CheckSquare className="mr-2 h-4 w-4" />
+                View Task Lists
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Project Permanently?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the project 
+                "{project?.title}" and all associated data.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeletePermanently}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete Permanently"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Archive Confirmation Dialog */}
+        <AlertDialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Archive Project?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will move the project "{project?.title}" to the archive. 
+                You can restore it later if needed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleArchive}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Archiving..." : "Archive Project"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
