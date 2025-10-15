@@ -156,11 +156,19 @@ OUTCOMES:
       return;
     }
 
+    if (!aiTag || projectBriefItems.length === 0 || desiredOutcomesItems.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please generate project details first",
+      });
+      return;
+    }
+
     setIsGeneratingTasks(true);
     try {
-      // Create a temporary project object for task generation
-      const tempProject = {
-        id: idea.id,
+      // Pass project data directly (project doesn't exist in DB yet)
+      const projectData = {
         title: idea.title,
         description: idea.description,
         project_brief: checklistToString(projectBriefItems),
@@ -169,7 +177,7 @@ OUTCOMES:
       };
 
       const { data, error } = await supabase.functions.invoke('generate-tasks', {
-        body: { projectId: tempProject.id }
+        body: { projectData }
       });
 
       if (error) throw error;

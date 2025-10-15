@@ -37,10 +37,10 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId } = await req.json();
+    const { projectData } = await req.json();
     
-    if (!projectId) {
-      throw new Error('Project ID is required');
+    if (!projectData) {
+      throw new Error('Project data is required');
     }
 
     const authHeader = req.headers.get('Authorization');
@@ -60,31 +60,13 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Fetch project details
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found');
-    }
-
-    const workflowStep = project.workflow_step || 1;
+    const workflowStep = projectData.workflow_step || 1;
     const workflowInfo = WORKFLOW_CONTEXT[workflowStep as keyof typeof WORKFLOW_CONTEXT];
-
-    // Fetch all profiles to map user IDs to names
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, display_name');
-
-    const profileMap = new Map(profiles?.map(p => [p.id, p.display_name]) || []);
 
     const systemPrompt = `You are an AI Transformation Project assistant. Generate 3-5 specific, actionable tasks for the current workflow step.
 
-Project: ${project.title}
-Description: ${project.description || 'N/A'}
+Project: ${projectData.title}
+Description: ${projectData.description || 'N/A'}
 Workflow Step ${workflowStep}: ${workflowInfo.name}
 Division: ${workflowInfo.division}
 
@@ -97,8 +79,8 @@ For each task, suggest:
 4. A brief description
 
 Consider the project brief and desired outcomes:
-${project.project_brief || 'N/A'}
-${project.desired_outcomes || 'N/A'}`;
+${projectData.project_brief || 'N/A'}
+${projectData.desired_outcomes || 'N/A'}`;
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {
