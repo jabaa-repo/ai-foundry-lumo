@@ -188,7 +188,7 @@ OUTCOMES: [desired outcomes]`
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Rocket className="h-5 w-5 text-primary" />
-            <DialogTitle>Convert to Project</DialogTitle>
+            <DialogTitle>Convert to Project: {idea?.title}</DialogTitle>
           </div>
           <DialogDescription>
             Transform this idea into a tracked project with a unique project number

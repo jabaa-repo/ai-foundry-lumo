@@ -336,6 +336,29 @@ DESCRIPTION: [improved description]`
                 </Badge>
               ))}
             </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add custom department..."
+                value={newDepartment}
+                onChange={(e) => setNewDepartment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addDepartment(newDepartment);
+                  }
+                }}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => addDepartment(newDepartment)}
+                disabled={!newDepartment.trim()}
+              >
+                Add
+              </Button>
+            </div>
             {departments.length > 0 && (
               <div className="flex gap-1 flex-wrap">
                 {departments.map((dept) => (
