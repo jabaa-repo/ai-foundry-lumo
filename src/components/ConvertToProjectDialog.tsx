@@ -3,10 +3,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Rocket, Calendar, Paperclip, X } from "lucide-react";
+import { ChecklistInput, checklistToString, stringToChecklist } from "@/components/ChecklistInput";
+
+interface ChecklistItem {
+  id: string;
+  text: string;
+  checked: boolean;
+}
 
 interface ConvertToProjectDialogProps {
   idea: any;
@@ -18,8 +24,8 @@ interface ConvertToProjectDialogProps {
 export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuccess }: ConvertToProjectDialogProps) {
   const [loading, setLoading] = useState(false);
   const [aiTag, setAiTag] = useState("");
-  const [projectBrief, setProjectBrief] = useState("");
-  const [desiredOutcomes, setDesiredOutcomes] = useState("");
+  const [projectBriefItems, setProjectBriefItems] = useState<ChecklistItem[]>([]);
+  const [desiredOutcomesItems, setDesiredOutcomesItems] = useState<ChecklistItem[]>([]);
   const [dueDate, setDueDate] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -114,10 +120,10 @@ OUTCOMES:
         setAiTag(tagMatch[1].trim());
       }
       if (briefMatch && briefMatch[1]) {
-        setProjectBrief(briefMatch[1].trim());
+        setProjectBriefItems(stringToChecklist(briefMatch[1].trim()));
       }
       if (outcomesMatch && outcomesMatch[1]) {
-        setDesiredOutcomes(outcomesMatch[1].trim());
+        setDesiredOutcomesItems(stringToChecklist(outcomesMatch[1].trim()));
       }
 
       toast({
@@ -145,7 +151,7 @@ OUTCOMES:
       return;
     }
 
-    if (!projectBrief || !desiredOutcomes) {
+    if (projectBriefItems.length === 0 || desiredOutcomesItems.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -172,8 +178,8 @@ OUTCOMES:
         .insert({
           title: idea.title,
           description: idea.description,
-          project_brief: projectBrief,
-          desired_outcomes: desiredOutcomes,
+          project_brief: checklistToString(projectBriefItems),
+          desired_outcomes: checklistToString(desiredOutcomesItems),
           due_date: dueDate || null,
           departments: idea.departments || [],
           owner_id: user.id,
@@ -307,14 +313,14 @@ OUTCOMES:
 
           <div className="space-y-2">
             <Label>Project Brief (Expected Features Checklist) *</Label>
-            <Textarea
-              placeholder="- [ ] Feature 1&#10;- [ ] Feature 2&#10;- [ ] Feature 3"
-              value={projectBrief}
-              onChange={(e) => setProjectBrief(e.target.value)}
-              rows={6}
-              disabled={aiGenerating}
-              className="resize-none font-mono text-sm"
-            />
+            <div className="border rounded-md p-4 max-h-64 overflow-y-auto">
+              <ChecklistInput
+                items={projectBriefItems}
+                onChange={setProjectBriefItems}
+                placeholder="Add expected feature..."
+                disabled={aiGenerating}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               List expected features as checklist items - these will be converted to engineering tasks
             </p>
@@ -322,14 +328,14 @@ OUTCOMES:
 
           <div className="space-y-2">
             <Label>Desired Outcomes (Checklist) *</Label>
-            <Textarea
-              placeholder="- [ ] Outcome 1&#10;- [ ] Outcome 2&#10;- [ ] Outcome 3"
-              value={desiredOutcomes}
-              onChange={(e) => setDesiredOutcomes(e.target.value)}
-              rows={5}
-              disabled={aiGenerating}
-              className="resize-none font-mono text-sm"
-            />
+            <div className="border rounded-md p-4 max-h-64 overflow-y-auto">
+              <ChecklistInput
+                items={desiredOutcomesItems}
+                onChange={setDesiredOutcomesItems}
+                placeholder="Add desired outcome..."
+                disabled={aiGenerating}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               List desired outcomes as checklist items
             </p>
@@ -375,7 +381,7 @@ OUTCOMES:
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleConvert} disabled={loading || !aiTag || !projectBrief || !desiredOutcomes}>
+          <Button onClick={handleConvert} disabled={loading || !aiTag || projectBriefItems.length === 0 || desiredOutcomesItems.length === 0}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Convert to Project
           </Button>
