@@ -165,8 +165,9 @@ OUTCOMES: [desired outcomes]`
         description: `Project ${projectNumber} created and moved to Business Innovation backlog`,
       });
       
-      onSuccess();
+      // Close both dialogs and refresh
       onOpenChange(false);
+      onSuccess();
     } catch (error: any) {
       toast({
         variant: "destructive",

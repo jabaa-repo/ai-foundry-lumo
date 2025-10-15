@@ -24,6 +24,7 @@ interface Idea {
   category: string | null;
   created_at: string;
   departments?: string[];
+  project_id?: string | null;
 }
 
 export default function Dashboard() {
@@ -54,13 +55,31 @@ export default function Dashboard() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Set up realtime subscription for ideas
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'ideas'
+        },
+        () => fetchIdeas()
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
   }, [navigate]);
 
   const fetchIdeas = async () => {
     const { data, error } = await supabase
       .from('ideas')
       .select('*')
+      .is('project_id', null)
       .order('created_at', { ascending: false });
 
     if (error) {
