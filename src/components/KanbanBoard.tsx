@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { CheckSquare, User, Calendar, TrendingUp, Code, Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,7 @@ interface KanbanBoardProps {
 
 export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectClick }: KanbanBoardProps) {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [projectTaskStats, setProjectTaskStats] = useState<Record<string, { total: number; completed: number }>>({});
 
   useEffect(() => {
     // Fetch profiles for both idea owners and project owners
@@ -51,6 +53,11 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
     if (uniqueOwnerIds.length > 0) {
       fetchProfiles(uniqueOwnerIds);
     }
+
+    // Fetch task stats for all projects
+    if (projects.length > 0) {
+      fetchTaskStats(projects.map(p => p.id));
+    }
   }, [ideas, projects]);
 
   const fetchProfiles = async (userIds: string[]) => {
@@ -65,6 +72,32 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
         return acc;
       }, {} as Record<string, Profile>);
       setProfiles(profileMap);
+    }
+  };
+
+  const fetchTaskStats = async (projectIds: string[]) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('project_id, status')
+      .in('project_id', projectIds);
+
+    if (!error && data) {
+      const statsMap = data.reduce((acc, task) => {
+        if (!task.project_id) return acc;
+        
+        if (!acc[task.project_id]) {
+          acc[task.project_id] = { total: 0, completed: 0 };
+        }
+        
+        acc[task.project_id].total++;
+        if (task.status === 'done') {
+          acc[task.project_id].completed++;
+        }
+        
+        return acc;
+      }, {} as Record<string, { total: number; completed: number }>);
+      
+      setProjectTaskStats(statsMap);
     }
   };
 
@@ -226,7 +259,20 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Progress</span>
+                        <span>{projectTaskStats[project.id].completed}/{projectTaskStats[project.id].total} tasks</span>
+                      </div>
+                      <Progress 
+                        value={(projectTaskStats[project.id].completed / projectTaskStats[project.id].total) * 100} 
+                        className="h-2"
+                      />
+                    </div>
+                  )}
+
+                   <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                     {project.owner_id && profiles[project.owner_id] && (
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3" />

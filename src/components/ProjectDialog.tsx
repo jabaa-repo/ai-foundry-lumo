@@ -220,22 +220,22 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
                 {project.project_number}
               </Badge>
             )}
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          {/* Backlog and Workflow */}
-          <div className="flex items-center gap-4">
             {project.backlog && (
               <div className="flex items-center gap-2">
                 {getBacklogIcon(project.backlog)}
                 <span className="text-sm font-medium">{getBacklogTitle(project.backlog)}</span>
               </div>
             )}
-            {project.workflow_step !== undefined && (
-              <WorkflowStepIndicator step={project.workflow_step} />
-            )}
           </div>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Workflow */}
+          {project.workflow_step !== undefined && (
+            <div>
+              <WorkflowStepIndicator step={project.workflow_step} />
+            </div>
+          )}
 
           {/* Description */}
           {project.description && (
@@ -248,31 +248,25 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
           )}
 
           {/* Project Brief */}
-          {briefItems.length > 0 && (
+          {project.project_brief && (
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-semibold mb-3">Project Brief (Expected Features)</p>
-                <ChecklistInput
-                  items={briefItems}
-                  onChange={handleBriefChange}
-                  placeholder="Add feature..."
-                  disabled={false}
-                />
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {project.project_brief}
+                </div>
               </CardContent>
             </Card>
           )}
 
           {/* Desired Outcomes */}
-          {outcomesItems.length > 0 && (
+          {project.desired_outcomes && (
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm font-semibold mb-3">Desired Outcomes</p>
-                <ChecklistInput
-                  items={outcomesItems}
-                  onChange={handleOutcomesChange}
-                  placeholder="Add outcome..."
-                  disabled={false}
-                />
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {project.desired_outcomes}
+                </div>
               </CardContent>
             </Card>
           )}
