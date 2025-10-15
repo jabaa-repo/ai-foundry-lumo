@@ -274,7 +274,7 @@ OUTCOMES:
         const tasksToInsert = generatedTasks.map((task: any) => ({
           title: task.title,
           description: `${task.description}\n\n**Responsible:** ${task.responsible_role_name}\n**Accountable:** ${task.accountable_role_name}`,
-          idea_id: project.id,
+          idea_id: idea.id,
           project_id: project.id,
           owner_id: user.id,
           status: 'todo' as const
