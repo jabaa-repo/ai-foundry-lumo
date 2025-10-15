@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Send, Sparkles, Loader2 } from "lucide-react";
+import { Calendar, Send, Paperclip, Download, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface Task {
@@ -58,6 +58,27 @@ interface Profile {
   avatar_url?: string;
 }
 
+interface TaskAttachment {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+interface CommentAttachment {
+  id: string;
+  comment_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
 interface TaskDetailDialogProps {
   task: Task | null;
   open: boolean;
@@ -71,13 +92,19 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
   const [newComment, setNewComment] = useState("");
   const [newActivity, setNewActivity] = useState("");
-  const [isGeneratingActivities, setIsGeneratingActivities] = useState(false);
-  const [assignedUser, setAssignedUser] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Profile[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
+  const [taskAttachments, setTaskAttachments] = useState<TaskAttachment[]>([]);
+  const [commentAttachments, setCommentAttachments] = useState<Record<string, CommentAttachment[]>>({});
+  const [accountableUser, setAccountableUser] = useState<string>("");
+  const [responsibleUser, setResponsibleUser] = useState<string>("");
+  const [accountableSearchQuery, setAccountableSearchQuery] = useState("");
+  const [responsibleSearchQuery, setResponsibleSearchQuery] = useState("");
+  const [accountableSearchResults, setAccountableSearchResults] = useState<Profile[]>([]);
+  const [responsibleSearchResults, setResponsibleSearchResults] = useState<Profile[]>([]);
+  const [showAccountableSearch, setShowAccountableSearch] = useState(false);
+  const [showResponsibleSearch, setShowResponsibleSearch] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [uploadingFile, setUploadingFile] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -85,24 +112,38 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       fetchActivities();
       fetchComments();
       fetchActivityLog();
-      setAssignedUser(task.assigned_to || "");
-      setStartDate(task.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : "");
+      fetchTaskAttachments();
+      setAccountableUser(task.assigned_to || "");
+      setResponsibleUser(task.assigned_to || "");
+      const currentStartDate = task.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+      setStartDate(currentStartDate);
       setDueDate(task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "");
     }
   }, [task]);
 
   useEffect(() => {
-    if (searchQuery.startsWith("@")) {
-      const query = searchQuery.slice(1);
+    if (accountableSearchQuery.startsWith("@")) {
+      const query = accountableSearchQuery.slice(1);
       if (query.length > 0) {
-        searchUsers(query);
+        searchUsers(query, "accountable");
       }
     } else {
-      setShowSearch(false);
+      setShowAccountableSearch(false);
     }
-  }, [searchQuery]);
+  }, [accountableSearchQuery]);
 
-  const searchUsers = async (query: string) => {
+  useEffect(() => {
+    if (responsibleSearchQuery.startsWith("@")) {
+      const query = responsibleSearchQuery.slice(1);
+      if (query.length > 0) {
+        searchUsers(query, "responsible");
+      }
+    } else {
+      setShowResponsibleSearch(false);
+    }
+  }, [responsibleSearchQuery]);
+
+  const searchUsers = async (query: string, type: "accountable" | "responsible") => {
     const { data, error } = await supabase
       .from("profiles")
       .select("id, display_name, avatar_url")
@@ -110,8 +151,13 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       .limit(5);
 
     if (!error && data) {
-      setSearchResults(data);
-      setShowSearch(true);
+      if (type === "accountable") {
+        setAccountableSearchResults(data);
+        setShowAccountableSearch(true);
+      } else {
+        setResponsibleSearchResults(data);
+        setShowResponsibleSearch(true);
+      }
     }
   };
 
@@ -153,6 +199,37 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     }));
 
     setComments(commentsWithProfiles);
+    
+    // Fetch attachments for each comment
+    for (const comment of commentsData) {
+      fetchCommentAttachments(comment.id);
+    }
+  };
+
+  const fetchTaskAttachments = async () => {
+    if (!task) return;
+
+    const { data, error } = await supabase
+      .from("task_attachments")
+      .select("*")
+      .eq("task_id", task.id)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setTaskAttachments(data);
+    }
+  };
+
+  const fetchCommentAttachments = async (commentId: string) => {
+    const { data, error } = await supabase
+      .from("comment_attachments")
+      .select("*")
+      .eq("comment_id", commentId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setCommentAttachments((prev) => ({ ...prev, [commentId]: data }));
+    }
   };
 
   const fetchActivityLog = async () => {
@@ -230,43 +307,109 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     logActivity("added_activity", newActivity.trim());
   };
 
-  const handleGenerateActivities = async () => {
-    if (!task) return;
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, commentId?: string) => {
+    const file = e.target.files?.[0];
+    if (!file || !task) return;
 
-    setIsGeneratingActivities(true);
+    setUploadingFile(true);
     try {
-      const { data, error } = await supabase.functions.invoke("lumo-chat", {
-        body: {
-          message: `Generate 5-7 specific, actionable activities for this task: "${task.title}". Description: ${task.description || "No description"}. Return only a JSON array of activity titles as strings.`,
-          type: "generate_activities",
-        },
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}/${task.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("task-attachments")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      if (commentId) {
+        const { error: dbError } = await supabase.from("comment_attachments").insert({
+          comment_id: commentId,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          mime_type: file.type,
+          uploaded_by: user.id,
+        });
+
+        if (dbError) throw dbError;
+        fetchCommentAttachments(commentId);
+      } else {
+        const { error: dbError } = await supabase.from("task_attachments").insert({
+          task_id: task.id,
+          file_name: file.name,
+          file_path: filePath,
+          file_size: file.size,
+          mime_type: file.type,
+          uploaded_by: user.id,
+        });
+
+        if (dbError) throw dbError;
+        fetchTaskAttachments();
+      }
+
+      toast({ title: "Success", description: "File uploaded successfully" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to upload file", variant: "destructive" });
+    } finally {
+      setUploadingFile(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDownloadFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from("task-attachments")
+        .download(filePath);
 
       if (error) throw error;
 
-      const activitiesText = data.response;
-      let generatedActivities: string[] = [];
-      
-      try {
-        generatedActivities = JSON.parse(activitiesText);
-      } catch {
-        generatedActivities = activitiesText.split("\n").filter((line: string) => line.trim().length > 0);
-      }
-
-      for (const activityTitle of generatedActivities) {
-        await supabase.from("task_activities").insert({
-          task_id: task.id,
-          title: activityTitle.replace(/^[-*•]\s*/, "").trim(),
-        });
-      }
-
-      fetchActivities();
-      logActivity("generated_activities", `Generated ${generatedActivities.length} activities with AI`);
-      toast({ title: "Success", description: "Activities generated successfully" });
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
-      toast({ title: "Error", description: "Failed to generate activities", variant: "destructive" });
-    } finally {
-      setIsGeneratingActivities(false);
+      toast({ title: "Error", description: "Failed to download file", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteFile = async (attachmentId: string, filePath: string, isComment: boolean) => {
+    try {
+      const { error: storageError } = await supabase.storage
+        .from("task-attachments")
+        .remove([filePath]);
+
+      if (storageError) throw storageError;
+
+      const table = isComment ? "comment_attachments" : "task_attachments";
+      const { error: dbError } = await supabase
+        .from(table)
+        .delete()
+        .eq("id", attachmentId);
+
+      if (dbError) throw dbError;
+
+      if (isComment) {
+        // Refresh comment attachments
+        const commentId = Object.keys(commentAttachments).find(
+          (id) => commentAttachments[id].some((att) => att.id === attachmentId)
+        );
+        if (commentId) fetchCommentAttachments(commentId);
+      } else {
+        fetchTaskAttachments();
+      }
+
+      toast({ title: "Success", description: "File deleted successfully" });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete file", variant: "destructive" });
     }
   };
 
@@ -292,7 +435,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     logActivity("added_comment");
   };
 
-  const handleAssignUser = async (userId: string, displayName: string) => {
+  const handleAssignAccountable = async (userId: string, displayName: string) => {
     if (!task) return;
 
     const { error } = await supabase
@@ -301,14 +444,35 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       .eq("id", task.id);
 
     if (error) {
-      toast({ title: "Error", description: "Failed to assign user", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to assign accountable person", variant: "destructive" });
       return;
     }
 
-    setAssignedUser(userId);
-    setSearchQuery("");
-    setShowSearch(false);
-    logActivity("assigned_user", displayName);
+    setAccountableUser(userId);
+    setAccountableSearchQuery("");
+    setShowAccountableSearch(false);
+    
+    // Set start date to today when assigning
+    if (!startDate) {
+      const today = format(new Date(), "yyyy-MM-dd");
+      setStartDate(today);
+      await supabase
+        .from("tasks")
+        .update({ start_date: new Date().toISOString() })
+        .eq("id", task.id);
+    }
+    
+    logActivity("assigned_accountable", displayName);
+    onTaskUpdate();
+  };
+
+  const handleAssignResponsible = async (userId: string, displayName: string) => {
+    if (!task) return;
+
+    setResponsibleUser(userId);
+    setResponsibleSearchQuery("");
+    setShowResponsibleSearch(false);
+    logActivity("assigned_responsible", displayName);
     onTaskUpdate();
   };
 
@@ -353,15 +517,61 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
           <TabsContent value="details" className="space-y-4">
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-4">
-                {/* Responsible and Accountable */}
+                {/* Assign Accountable and Responsible */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Responsible</label>
-                    <p className="text-sm text-muted-foreground">{task.responsible_role || "Not assigned"}</p>
+                    <label className="text-sm font-medium">Assign Accountable Person</label>
+                    <div className="relative mt-1">
+                      <Input
+                        placeholder="Type @ to search..."
+                        value={accountableSearchQuery}
+                        onChange={(e) => setAccountableSearchQuery(e.target.value)}
+                      />
+                      {showAccountableSearch && accountableSearchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                          {accountableSearchResults.map((user) => (
+                            <button
+                              key={user.id}
+                              onClick={() => handleAssignAccountable(user.id, user.display_name || "Unknown")}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={user.avatar_url || ""} />
+                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Accountable</label>
-                    <p className="text-sm text-muted-foreground">{task.accountable_role || "Not assigned"}</p>
+                    <label className="text-sm font-medium">Assign Responsible Person</label>
+                    <div className="relative mt-1">
+                      <Input
+                        placeholder="Type @ to search..."
+                        value={responsibleSearchQuery}
+                        onChange={(e) => setResponsibleSearchQuery(e.target.value)}
+                      />
+                      {showResponsibleSearch && responsibleSearchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10 max-h-40 overflow-y-auto">
+                          {responsibleSearchResults.map((user) => (
+                            <button
+                              key={user.id}
+                              onClick={() => handleAssignResponsible(user.id, user.display_name || "Unknown")}
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarImage src={user.avatar_url || ""} />
+                                <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.display_name || "Unknown User"}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -395,55 +605,57 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
 
                 <Separator />
 
-                {/* Assign to Team Member */}
+                {/* Task Attachments */}
                 <div>
-                  <label className="text-sm font-medium">Assign to Team Member</label>
-                  <div className="relative mt-1">
-                    <Input
-                      placeholder="Type @ to search members..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium">File Attachments</label>
+                    <label htmlFor="task-file-upload">
+                      <Button variant="outline" size="sm" disabled={uploadingFile} asChild>
+                        <span className="cursor-pointer">
+                          <Paperclip className="w-4 h-4 mr-2" />
+                          Upload File
+                        </span>
+                      </Button>
+                    </label>
+                    <input
+                      id="task-file-upload"
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e)}
                     />
-                    {showSearch && searchResults.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-md shadow-lg z-10">
-                        {searchResults.map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => handleAssignUser(user.id, user.display_name || "Unknown")}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left"
-                          >
-                            <Avatar className="w-6 h-6">
-                              <AvatarImage src={user.avatar_url || ""} />
-                              <AvatarFallback>{user.display_name?.charAt(0) || "U"}</AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{user.display_name || "Unknown User"}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
+                  {taskAttachments.length > 0 && (
+                    <div className="space-y-2">
+                      {taskAttachments.map((attachment) => (
+                        <div key={attachment.id} className="flex items-center justify-between p-2 border rounded-md">
+                          <span className="text-sm truncate flex-1">{attachment.file_name}</span>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadFile(attachment.file_path, attachment.file_name)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteFile(attachment.id, attachment.file_path, false)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
 
-                {/* Activities */}
+                {/* Task Checklists */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Activities</label>
-                    <Button
-                      onClick={handleGenerateActivities}
-                      disabled={isGeneratingActivities}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {isGeneratingActivities ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-4 h-4 mr-2" />
-                      )}
-                      Generate with AI
-                    </Button>
-                  </div>
+                  <label className="text-sm font-medium">Task Checklists</label>
 
                   <div className="space-y-2">
                     {activities.map((activity) => (
@@ -459,14 +671,15 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-start">
                     <Input
-                      placeholder="Add new activity..."
+                      placeholder="Add new task checklist..."
                       value={newActivity}
                       onChange={(e) => setNewActivity(e.target.value)}
                       onKeyPress={(e) => e.key === "Enter" && handleAddActivity()}
+                      className="flex-1"
                     />
-                    <Button onClick={handleAddActivity} size="sm">Add</Button>
+                    <Button onClick={handleAddActivity} size="sm" className="shrink-0">Add</Button>
                   </div>
                 </div>
               </div>
@@ -477,33 +690,81 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-4">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="flex gap-3">
-                    <Avatar>
-                      <AvatarImage src={comment.profiles?.avatar_url || ""} />
-                      <AvatarFallback>{comment.profiles?.display_name?.charAt(0) || "U"}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{comment.profiles?.display_name || "Unknown"}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(comment.created_at), "MMM d, yyyy HH:mm")}
-                        </span>
+                  <div key={comment.id} className="space-y-2">
+                    <div className="flex gap-3">
+                      <Avatar>
+                        <AvatarImage src={comment.profiles?.avatar_url || ""} />
+                        <AvatarFallback>{comment.profiles?.display_name?.charAt(0) || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{comment.profiles?.display_name || "Unknown"}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(comment.created_at), "MMM d, yyyy HH:mm")}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-1">{comment.content}</p>
+                        
+                        {/* Comment Attachments */}
+                        {commentAttachments[comment.id]?.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {commentAttachments[comment.id].map((attachment) => (
+                              <div key={attachment.id} className="flex items-center justify-between p-2 border rounded-md text-xs">
+                                <span className="truncate flex-1">{attachment.file_name}</span>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDownloadFile(attachment.file_path, attachment.file_name)}
+                                  >
+                                    <Download className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteFile(attachment.id, attachment.file_path, true)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add attachment to comment */}
+                        <label htmlFor={`comment-file-${comment.id}`} className="mt-2 inline-block">
+                          <Button variant="ghost" size="sm" disabled={uploadingFile} asChild>
+                            <span className="cursor-pointer text-xs">
+                              <Paperclip className="w-3 h-3 mr-1" />
+                              Attach file
+                            </span>
+                          </Button>
+                        </label>
+                        <input
+                          id={`comment-file-${comment.id}`}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => handleFileUpload(e, comment.id)}
+                        />
                       </div>
-                      <p className="text-sm mt-1">{comment.content}</p>
                     </div>
                   </div>
                 ))}
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex flex-col gap-2 pt-4">
                   <Textarea
                     placeholder="Add a comment..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     className="min-h-[80px]"
                   />
-                  <Button onClick={handleAddComment} size="sm">
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button onClick={handleAddComment} size="sm">
+                      <Send className="w-4 h-4 mr-2" />
+                      Send
+                    </Button>
+                  </div>
                 </div>
               </div>
             </ScrollArea>
