@@ -30,9 +30,10 @@ interface KanbanBoardProps {
   ideas: Idea[];
   projects: any[];
   onIdeaClick: (idea: Idea) => void;
+  onProjectClick: (project: any) => void;
 }
 
-export default function KanbanBoard({ ideas, projects, onIdeaClick }: KanbanBoardProps) {
+export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectClick }: KanbanBoardProps) {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
@@ -186,6 +187,7 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick }: KanbanBoar
               <Card
                 key={project.id}
                 className="cursor-pointer hover:shadow-hover transition-all border-border"
+                onClick={() => onProjectClick(project)}
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium leading-tight">

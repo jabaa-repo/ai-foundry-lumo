@@ -9,6 +9,7 @@ import { LogOut, Plus } from "lucide-react";
 import KanbanBoard from "@/components/KanbanBoard";
 import AIChatZone from "@/components/AIChatZone";
 import IdeaDialog from "@/components/IdeaDialog";
+import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
 import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
@@ -32,7 +33,9 @@ export default function Dashboard() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
+  const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showIdeaDialog, setShowIdeaDialog] = useState(false);
+  const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [activeTasks, setActiveTasks] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -151,6 +154,11 @@ export default function Dashboard() {
     setShowIdeaDialog(true);
   };
 
+  const handleProjectClick = (project: any) => {
+    setSelectedProject(project);
+    setShowProjectDialog(true);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -200,7 +208,12 @@ export default function Dashboard() {
           </Button>
         </div>
         
-        <KanbanBoard ideas={ideas} projects={projects} onIdeaClick={handleIdeaClick} />
+        <KanbanBoard 
+          ideas={ideas} 
+          projects={projects} 
+          onIdeaClick={handleIdeaClick}
+          onProjectClick={handleProjectClick}
+        />
       </main>
 
       {/* AI Chat Zone */}
@@ -212,6 +225,13 @@ export default function Dashboard() {
         open={showIdeaDialog}
         onOpenChange={setShowIdeaDialog}
         onSuccess={fetchIdeas}
+      />
+
+      {/* Project Dialog */}
+      <ProjectDialog
+        project={selectedProject}
+        open={showProjectDialog}
+        onOpenChange={setShowProjectDialog}
       />
     </div>
   );
