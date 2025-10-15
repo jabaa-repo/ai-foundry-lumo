@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Calendar, Paperclip, X, Sparkles, CheckCircle2, XCircle, Plus } from "lucide-react";
+import { Loader2, Rocket, Calendar, Paperclip, X, Sparkles, CheckCircle2, XCircle, Plus, Trash2, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -70,6 +70,31 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
     setFileContent("");
   };
 
+  const removeGeneratedTask = (index: number) => {
+    setGeneratedTasks(generatedTasks.filter((_, i) => i !== index));
+  };
+
+  const updateTaskActivity = (taskIndex: number, activityIndex: number, newValue: string) => {
+    const updated = [...generatedTasks];
+    updated[taskIndex].activities[activityIndex] = newValue;
+    setGeneratedTasks(updated);
+  };
+
+  const deleteTaskActivity = (taskIndex: number, activityIndex: number) => {
+    const updated = [...generatedTasks];
+    updated[taskIndex].activities.splice(activityIndex, 1);
+    setGeneratedTasks(updated);
+  };
+
+  const addTaskActivity = (taskIndex: number) => {
+    const updated = [...generatedTasks];
+    if (!updated[taskIndex].activities) {
+      updated[taskIndex].activities = [];
+    }
+    updated[taskIndex].activities.push('New activity');
+    setGeneratedTasks(updated);
+  };
+
   const handleGenerateAI = async () => {
     if (!idea?.title || !idea?.description) {
       toast({
@@ -98,8 +123,8 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
         body: { 
           message: `Based on this idea, generate:
 1. A single-word tag (in UPPERCASE) that captures the essence of this project
-2. A project brief listing expected features (5-8 items as bullet points)
-3. Desired outcomes as bullet points (3-5 items)
+2. A project brief listing expected features (5-8 items as bullet points with - or •)
+3. Desired outcomes as bullet points (3-5 items with - or •)
 
 Idea Title: ${idea.title}
 Idea Description: ${idea.description}${fileContext}
@@ -129,11 +154,11 @@ OUTCOMES:
         setAiTag(tagMatch[1].trim());
       }
       if (briefMatch && briefMatch[1]) {
-        const briefText = briefMatch[1].trim().split('\n').map(line => line.replace(/^-\s*/, '')).join('\n');
+        const briefText = briefMatch[1].trim();
         setProjectBrief(briefText);
       }
       if (outcomesMatch && outcomesMatch[1]) {
-        const outcomesText = outcomesMatch[1].trim().split('\n').map(line => line.replace(/^-\s*/, '')).join('\n');
+        const outcomesText = outcomesMatch[1].trim();
         setDesiredOutcomes(outcomesText);
       }
 
@@ -547,13 +572,13 @@ Return only a simple bullet list of activities, one per line starting with "- "`
             <Textarea
               value={projectBrief}
               onChange={(e) => setProjectBrief(e.target.value)}
-              placeholder="List expected features (one per line)"
+              placeholder="- Feature 1&#10;- Feature 2&#10;- Feature 3"
               rows={6}
               disabled={aiGenerating}
               className="resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              List expected features - these will guide engineering task generation
+              List expected features using bullet points (- or •)
             </p>
           </div>
 
@@ -562,13 +587,13 @@ Return only a simple bullet list of activities, one per line starting with "- "`
             <Textarea
               value={desiredOutcomes}
               onChange={(e) => setDesiredOutcomes(e.target.value)}
-              placeholder="List desired outcomes (one per line)"
+              placeholder="- Outcome 1&#10;- Outcome 2&#10;- Outcome 3"
               rows={4}
               disabled={aiGenerating}
               className="resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              List desired outcomes for this project
+              List desired outcomes using bullet points (- or •)
             </p>
           </div>
 
@@ -636,7 +661,7 @@ Return only a simple bullet list of activities, one per line starting with "- "`
             {generatedTasks.length > 0 && (
               <Card className="border-primary/20">
                 <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
+                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold">
                         {generatedTasks.length} Tasks Generated
@@ -654,7 +679,7 @@ Return only a simple bullet list of activities, one per line starting with "- "`
                       onClick={() => setGeneratedTasks([])}
                     >
                       <XCircle className="mr-2 h-4 w-4" />
-                      Clear
+                      Clear All
                     </Button>
                   </div>
                   
@@ -662,8 +687,21 @@ Return only a simple bullet list of activities, one per line starting with "- "`
                      {generatedTasks.map((task: any, index: number) => (
                        <Card key={index} className="bg-muted/50">
                          <CardContent className="pt-3 space-y-2">
-                           <p className="text-sm font-medium">{task.title}</p>
-                           <p className="text-xs text-muted-foreground">{task.description}</p>
+                           <div className="flex items-start justify-between gap-2">
+                             <div className="flex-1">
+                               <p className="text-sm font-medium">{task.title}</p>
+                               <p className="text-xs text-muted-foreground">{task.description}</p>
+                             </div>
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="icon"
+                               onClick={() => removeGeneratedTask(index)}
+                               className="h-7 w-7 flex-shrink-0"
+                             >
+                               <Trash2 className="h-3.5 w-3.5" />
+                             </Button>
+                           </div>
                            <div className="flex gap-2 flex-wrap">
                              <Badge variant="outline" className="text-xs">
                                <strong>R:</strong> {task.responsible_role_name}
@@ -673,13 +711,41 @@ Return only a simple bullet list of activities, one per line starting with "- "`
                              </Badge>
                            </div>
                            {task.activities && task.activities.length > 0 && (
-                             <div className="mt-2 pl-2 border-l-2 border-border">
-                               <p className="text-xs font-medium mb-1">Activities:</p>
-                               <ul className="text-xs text-muted-foreground space-y-0.5">
+                             <div className="mt-2 pl-2 border-l-2 border-border space-y-1.5">
+                               <div className="flex items-center justify-between">
+                                 <p className="text-xs font-medium">Activities:</p>
+                                 <Button
+                                   type="button"
+                                   variant="ghost"
+                                   size="sm"
+                                   onClick={() => addTaskActivity(index)}
+                                   className="h-6 text-xs px-2"
+                                 >
+                                   <Plus className="h-3 w-3 mr-1" />
+                                   Add
+                                 </Button>
+                               </div>
+                               <div className="space-y-1">
                                  {task.activities.map((activity: string, i: number) => (
-                                   <li key={i}>• {activity}</li>
+                                   <div key={i} className="flex items-center gap-1.5 group">
+                                     <span className="text-muted-foreground">•</span>
+                                     <Input
+                                       value={activity}
+                                       onChange={(e) => updateTaskActivity(index, i, e.target.value)}
+                                       className="text-xs h-7 flex-1 bg-background"
+                                     />
+                                     <Button
+                                       type="button"
+                                       variant="ghost"
+                                       size="icon"
+                                       onClick={() => deleteTaskActivity(index, i)}
+                                       className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                     >
+                                       <X className="h-3 w-3" />
+                                     </Button>
+                                   </div>
                                  ))}
-                               </ul>
+                               </div>
                              </div>
                            )}
                          </CardContent>
