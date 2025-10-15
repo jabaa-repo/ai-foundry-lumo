@@ -4,7 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { CheckSquare, User, Calendar } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 
 interface Task {
   id: string;
@@ -144,7 +144,7 @@ export default function KanbanBoard({ ideas, onIdeaClick }: KanbanBoardProps) {
                         )}
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          <span>{formatDistanceToNow(new Date(idea.created_at), { addSuffix: true })}</span>
+                          <span>{format(new Date(idea.created_at), 'MMM dd, yyyy')}</span>
                         </div>
                       </div>
 

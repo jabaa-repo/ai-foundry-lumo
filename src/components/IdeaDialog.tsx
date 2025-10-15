@@ -70,6 +70,72 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
     setDepartments(departments.filter(d => d !== dept));
   };
 
+  const handleAISuggestDepartments = async () => {
+    if (!title.trim() && !description.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a title or description first",
+      });
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please sign in to use AI assistance",
+      });
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('lumo-chat', {
+        body: { 
+          message: `Based on this idea, suggest 2-4 relevant departments from this list: Marketing, Business Operations, Card Banking, Technology, Customer Service, Finance.
+
+Title: ${title}
+Description: ${description}
+
+Return ONLY the department names as a comma-separated list, nothing else.`
+        }
+      });
+
+      if (error) throw error;
+
+      const response = data.response;
+      
+      // Parse comma-separated departments
+      const suggestedDepts = response
+        .split(',')
+        .map((d: string) => d.trim())
+        .filter((d: string) => DEPARTMENT_OPTIONS.includes(d));
+      
+      if (suggestedDepts.length > 0) {
+        setDepartments(suggestedDepts);
+        toast({
+          title: "AI Assistant",
+          description: `Suggested ${suggestedDepts.length} relevant departments`,
+        });
+      } else {
+        toast({
+          title: "AI Assistant",
+          description: "Couldn't identify specific departments. Please select manually.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to get AI suggestions",
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleAIRewrite = async () => {
     if (!title.trim() && !description.trim()) {
       toast({
@@ -235,7 +301,29 @@ DESCRIPTION: [improved description]`
           </div>
 
           <div className="space-y-2">
-            <Label>Departments Affected</Label>
+            <div className="flex items-center justify-between">
+              <Label>Departments Affected</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleAISuggestDepartments}
+                disabled={aiLoading || (!title.trim() && !description.trim())}
+                className="text-xs h-7"
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-1 h-3 w-3" />
+                    AI Suggest
+                  </>
+                )}
+              </Button>
+            </div>
             <div className="flex gap-2 flex-wrap mb-2">
               {DEPARTMENT_OPTIONS.map((dept) => (
                 <Badge
