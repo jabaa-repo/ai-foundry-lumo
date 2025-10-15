@@ -215,8 +215,10 @@ export type Database = {
           backlog: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids: string[] | null
           created_at: string
+          departments: string[] | null
           description: string | null
           desired_outcomes: string
+          due_date: string | null
           id: string
           informed_ids: string[] | null
           last_activity_date: string | null
@@ -237,8 +239,10 @@ export type Database = {
           backlog?: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids?: string[] | null
           created_at?: string
+          departments?: string[] | null
           description?: string | null
           desired_outcomes: string
+          due_date?: string | null
           id?: string
           informed_ids?: string[] | null
           last_activity_date?: string | null
@@ -259,8 +263,10 @@ export type Database = {
           backlog?: Database["public"]["Enums"]["backlog_type"] | null
           consulted_ids?: string[] | null
           created_at?: string
+          departments?: string[] | null
           description?: string | null
           desired_outcomes?: string
+          due_date?: string | null
           id?: string
           informed_ids?: string[] | null
           last_activity_date?: string | null

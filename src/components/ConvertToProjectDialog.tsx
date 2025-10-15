@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket } from "lucide-react";
+import { Loader2, Rocket, Calendar } from "lucide-react";
 
 interface ConvertToProjectDialogProps {
   idea: any;
@@ -20,6 +20,7 @@ export default function ConvertToProjectDialog({ idea, open, onOpenChange, onSuc
   const [aiTag, setAiTag] = useState("");
   const [projectBrief, setProjectBrief] = useState("");
   const [desiredOutcomes, setDesiredOutcomes] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const { toast } = useToast();
 
@@ -134,6 +135,8 @@ OUTCOMES: [desired outcomes]`
           description: idea.description,
           project_brief: projectBrief,
           desired_outcomes: desiredOutcomes,
+          due_date: dueDate || null,
+          departments: idea.departments || [],
           owner_id: user.id,
           responsible_id: idea.responsible_id,
           accountable_id: idea.accountable_id,
@@ -250,6 +253,21 @@ OUTCOMES: [desired outcomes]`
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="due_date">Due Date</Label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="due_date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="pl-10"
+                disabled={aiGenerating}
+              />
+            </div>
+          </div>
+
           <div className="bg-muted p-3 rounded-md">
             <p className="text-sm font-semibold mb-1">Project Setup</p>
             <p className="text-sm text-muted-foreground">
@@ -258,6 +276,11 @@ OUTCOMES: [desired outcomes]`
             <p className="text-sm text-muted-foreground mt-1">
               <strong>Backlog:</strong> Business Innovation (Step 1)
             </p>
+            {idea?.departments && idea.departments.length > 0 && (
+              <p className="text-sm text-muted-foreground mt-1">
+                <strong>Tags:</strong> {idea.departments.join(', ')}
+              </p>
+            )}
             {aiTag && (
               <p className="text-sm text-muted-foreground mt-1">
                 <strong>Number Preview:</strong> {aiTag}-{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '')}-001

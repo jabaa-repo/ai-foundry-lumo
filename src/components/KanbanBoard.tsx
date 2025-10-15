@@ -36,16 +36,21 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick }: KanbanBoar
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
-    const ownerIds = ideas
+    // Fetch profiles for both idea owners and project owners
+    const ideaOwnerIds = ideas
       .map(idea => idea.owner_id)
       .filter((id): id is string => id !== null && id !== undefined);
     
-    const uniqueOwnerIds = [...new Set(ownerIds)];
+    const projectOwnerIds = projects
+      .map(project => project.owner_id)
+      .filter((id): id is string => id !== null && id !== undefined);
+    
+    const uniqueOwnerIds = [...new Set([...ideaOwnerIds, ...projectOwnerIds])];
     
     if (uniqueOwnerIds.length > 0) {
       fetchProfiles(uniqueOwnerIds);
     }
-  }, [ideas]);
+  }, [ideas, projects]);
 
   const fetchProfiles = async (userIds: string[]) => {
     const { data, error } = await supabase
@@ -198,14 +203,41 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick }: KanbanBoar
                   )}
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {project.project_brief && (
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {project.project_brief}
+                  {project.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-3">
+                      {project.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span>{format(new Date(project.last_activity_date || project.updated_at), 'MMM dd, yyyy')}</span>
+                  
+                  {project.departments && project.departments.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {project.departments.slice(0, 2).map((dept: string) => (
+                        <Badge key={dept} variant="outline" className="text-xs">
+                          {dept}
+                        </Badge>
+                      ))}
+                      {project.departments.length > 2 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{project.departments.length - 2}
+                        </Badge>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    {project.owner_id && profiles[project.owner_id] && (
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        <span>{profiles[project.owner_id].display_name || 'Unknown'}</span>
+                      </div>
+                    )}
+                    
+                    {project.due_date && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        <span>Due: {format(new Date(project.due_date), 'MMM dd, yyyy')}</span>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
