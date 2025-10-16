@@ -375,37 +375,12 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     
     const allCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.completed);
     
-    // Auto-update task status based on checklist completion
-    if (allCompleted && task.status !== 'done') {
-      const { error: statusError } = await supabase
-        .from("tasks")
-        .update({ status: 'done' })
-        .eq("id", task.id);
-
-      if (!statusError) {
-        toast({ 
-          title: "Task Completed!", 
-          description: "All checklists are complete. Task status changed to Done." 
-        });
-        
-        // Check if project should progress to next backlog
-        if (task.project_id) {
-          const nextBacklog = await checkAndProgressProjectBacklog(task.project_id);
-          if (nextBacklog) {
-            const backlogNames: Record<string, string> = {
-              'engineering': 'Engineering',
-              'outcomes_adoption': 'Outcomes & Adoption',
-              'completed': 'Completed Projects'
-            };
-            toast({
-              title: "Project Progressed!",
-              description: `All tasks complete. Project moved to ${backlogNames[nextBacklog] || nextBacklog}.`
-            });
-          }
-        }
-        
-        onTaskUpdate();
-      }
+    // Notify user when all checklists are completed (but don't auto-complete)
+    if (allCompleted && task.status === 'in_progress') {
+      toast({ 
+        title: "All Checklists Completed!", 
+        description: "You can now mark this task as done by clicking the Done button.",
+      });
     } else if (!completed && task.status === 'done') {
       // Change back to in_progress if unchecking while done
       const { error: statusError } = await supabase
@@ -713,6 +688,28 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       updates.status = 'in_progress';
     }
 
+    // If all checklists are completed, mark task as done
+    const allChecklistsCompleted = activities.length > 0 && activities.every(a => a.completed);
+    if (allChecklistsCompleted && task.status === 'in_progress') {
+      updates.status = 'done';
+      
+      // Check if project should progress to next backlog
+      if (task.project_id) {
+        const nextBacklog = await checkAndProgressProjectBacklog(task.project_id);
+        if (nextBacklog) {
+          const backlogNames: Record<string, string> = {
+            'engineering': 'Engineering',
+            'outcomes_adoption': 'Outcomes & Adoption',
+            'completed': 'Completed Projects'
+          };
+          toast({
+            title: "Project Progressed!",
+            description: `All tasks complete. Project moved to ${backlogNames[nextBacklog] || nextBacklog}.`
+          });
+        }
+      }
+    }
+
     const { error } = await supabase
       .from("tasks")
       .update(updates)
@@ -726,12 +723,18 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     if (originalTask?.assigned_to !== accountableUser) {
       logActivity("assigned_accountable", accountableUser);
     }
-    logActivity("updated_task", "Task details saved");
+    
+    if (updates.status === 'done') {
+      logActivity("completed_task", "Task marked as done");
+      toast({ title: "Task Completed!", description: "Task status changed to Done." });
+    } else {
+      logActivity("updated_task", "Task details saved");
+      toast({ title: "Success", description: "Changes saved successfully" });
+    }
     
     setHasChanges(false);
     setOriginalTask({ ...task, ...updates });
     onTaskUpdate();
-    toast({ title: "Success", description: "Changes saved successfully" });
     onOpenChange(false); // Close modal after successful save
   };
 
@@ -842,6 +845,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                       <div key={activity.id} className="flex items-center gap-2">
                         <Checkbox
                           checked={activity.completed}
+                          disabled={task.status === 'unassigned'}
                           onCheckedChange={(checked) => handleActivityToggle(activity.id, checked as boolean)}
                         />
                         <span className={activity.completed ? "line-through text-muted-foreground" : ""}>
