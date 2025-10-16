@@ -71,7 +71,12 @@ serve(async (req) => {
     }));
 
     const backlogDescriptions: Record<string, string> = {
-      'engineering': 'Engineering & Development - Focus on technical implementation, architecture, and development tasks',
+      'engineering': `Engineering & Development - Focus on technical implementation, architecture, and development tasks
+      
+Engineering Team Roles:
+- AI System Architect: Translate to Technical Specifications – Convert business requirements into detailed, build-ready documentation.
+- AI System Engineer: Build Enterprise-Scale Solutions – Implement the required systems, integrating AI components.
+- AI Data Engineer: Analytics and Continuous Delivery – Establish analytics platforms, monitor results, and support CI/CD.`,
       'outcomes_adoption': 'Outcomes & Adoption - Focus on launch, user adoption, measuring outcomes, and iteration',
     };
 
@@ -95,7 +100,8 @@ Generate 4-6 specific, actionable tasks for the ${nextBacklog} phase that:
 1. Build upon the work completed in the ${previousBacklog} phase
 2. Are appropriate for the ${nextBacklog} stage
 3. Have clear deliverables and success criteria
-4. Include role assignments (accountable and responsible)`;
+4. Include role assignments (accountable and responsible) based on the roles defined above
+5. Each task should have 3-5 concrete checklist items (activities) that break down the work into actionable steps`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -118,7 +124,7 @@ Generate 4-6 specific, actionable tasks for the ${nextBacklog} phase that:
           type: 'function',
           function: {
             name: 'generate_tasks',
-            description: 'Generate tasks for the current backlog phase',
+            description: 'Generate tasks for the current backlog phase with checklist items',
             parameters: {
               type: 'object',
               properties: {
@@ -131,8 +137,13 @@ Generate 4-6 specific, actionable tasks for the ${nextBacklog} phase that:
                       description: { type: 'string' },
                       accountable_role: { type: 'string' },
                       responsible_role: { type: 'string' },
+                      activities: {
+                        type: 'array',
+                        items: { type: 'string' },
+                        description: '3-5 concrete checklist items for this task'
+                      }
                     },
-                    required: ['title', 'description', 'accountable_role', 'responsible_role']
+                    required: ['title', 'description', 'accountable_role', 'responsible_role', 'activities']
                   }
                 }
               },
