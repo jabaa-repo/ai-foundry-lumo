@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { projectId, previousBacklog, nextBacklog } = await req.json();
+    const { projectId, previousBacklog, nextBacklog, additionalContext } = await req.json();
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -87,6 +87,7 @@ Previous Backlog (${previousBacklog}) Completed Work:
 ${JSON.stringify(previousWorkContext, null, 2)}
 
 Number of attachments/documents from previous phase: ${attachments.length}
+${additionalContext || ''}
 
 Current Backlog Phase: ${backlogDescriptions[nextBacklog] || nextBacklog}
 

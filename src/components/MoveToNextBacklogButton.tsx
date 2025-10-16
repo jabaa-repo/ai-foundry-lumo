@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useProjectProgression } from "@/hooks/useProjectProgression";
+import { useState } from "react";
+import BacklogTaskGenerationDialog from "./BacklogTaskGenerationDialog";
 
 interface MoveToNextBacklogButtonProps {
   projectId: string;
@@ -15,32 +17,60 @@ export function MoveToNextBacklogButton({
   onSuccess,
   className 
 }: MoveToNextBacklogButtonProps) {
-  const { canProgress, isLoading, progressProject, nextBacklog } = useProjectProgression(
+  const { canProgress, isLoading, nextBacklog } = useProjectProgression(
     projectId, 
     currentBacklog
   );
+  const [showTaskDialog, setShowTaskDialog] = useState(false);
 
-  const handleProgress = async () => {
-    await progressProject();
+  const handleProgress = () => {
+    // For engineering and outcomes_adoption, show task generation dialog
+    if (canProgress && (currentBacklog === 'business_innovation' || currentBacklog === 'engineering')) {
+      setShowTaskDialog(true);
+    }
+  };
+
+  const handleTaskGenerationSuccess = () => {
+    setShowTaskDialog(false);
     if (onSuccess) {
       onSuccess();
     }
   };
 
-  if (!nextBacklog || currentBacklog === 'completed') {
+  if (!nextBacklog || currentBacklog === 'completed' || !canProgress) {
     return null;
   }
 
+  // Determine the next backlog phase
+  const nextBacklogPhase = currentBacklog === 'business_innovation' 
+    ? 'engineering' 
+    : currentBacklog === 'engineering' 
+    ? 'outcomes_adoption' 
+    : null;
+
   return (
-    <Button
-      onClick={handleProgress}
-      disabled={!canProgress || isLoading}
-      size="sm"
-      variant="outline"
-      className={`h-8 text-xs ${className}`}
-    >
-      <ArrowRight className="h-3 w-3 mr-1" />
-      Move to {nextBacklog}
-    </Button>
+    <>
+      <Button
+        onClick={handleProgress}
+        disabled={isLoading}
+        size="sm"
+        variant="outline"
+        className={`h-8 text-xs ${className}`}
+      >
+        <ArrowRight className="h-3 w-3 mr-1" />
+        Move to {nextBacklog}
+      </Button>
+
+      {nextBacklogPhase && (
+        <BacklogTaskGenerationDialog
+          open={showTaskDialog}
+          onOpenChange={setShowTaskDialog}
+          projectId={projectId}
+          currentBacklog={currentBacklog}
+          nextBacklog={nextBacklogPhase}
+          onSuccess={handleTaskGenerationSuccess}
+        />
+      )}
+    </>
   );
 }

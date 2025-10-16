@@ -78,14 +78,32 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
   };
 
   const fetchTaskStats = async (projectIds: string[]) => {
+    // Fetch projects to get their current backlog
+    const { data: projectsData, error: projectsError } = await supabase
+      .from('projects')
+      .select('id, backlog')
+      .in('id', projectIds);
+
+    if (projectsError || !projectsData) return;
+
+    // Create a map of project_id to backlog
+    const projectBacklogMap = projectsData.reduce((acc, p) => {
+      acc[p.id] = p.backlog;
+      return acc;
+    }, {} as Record<string, string>);
+
     const { data, error } = await supabase
       .from('tasks')
-      .select('project_id, status')
+      .select('project_id, status, backlog')
       .in('project_id', projectIds);
 
     if (!error && data) {
       const statsMap = data.reduce((acc, task) => {
         if (!task.project_id) return acc;
+        
+        // Only count tasks from the current backlog
+        const currentBacklog = projectBacklogMap[task.project_id];
+        if (task.backlog !== currentBacklog) return acc;
         
         if (!acc[task.project_id]) {
           acc[task.project_id] = { total: 0, completed: 0 };
