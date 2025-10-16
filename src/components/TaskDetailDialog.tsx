@@ -368,6 +368,9 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       return;
     }
 
+    // Mark that changes were made
+    setHasChanges(true);
+
     // Check if all activities are completed after this update
     const updatedActivities = activities.map(a => 
       a.id === activityId ? { ...a, completed } : a
