@@ -65,6 +65,8 @@ export default function MyTasks() {
     });
   }, [navigate, projectId]);
 
+  const [projectNumber, setProjectNumber] = useState<string>("");
+
   const fetchMyTasks = async () => {
     // Fetch tasks for the specific project
     let query = supabase
@@ -72,16 +74,17 @@ export default function MyTasks() {
       .select('*');
     
     if (projectId) {
-      // Fetch project title, backlog, and status
+      // Fetch project title, backlog, status, and project_number
       const { data: projectData } = await supabase
         .from('projects')
-        .select('title, backlog, status')
+        .select('title, backlog, status, project_number')
         .eq('id', projectId)
         .single();
       
       if (projectData) {
         setProjectTitle(projectData.title);
         setProjectBacklog(projectData.backlog || '');
+        setProjectNumber(projectData.project_number || '');
         
         // Filter tasks by project
         query = query.eq('project_id', projectId);
@@ -179,30 +182,48 @@ export default function MyTasks() {
   const renderTaskCard = (task: Task) => (
     <Card 
       key={task.id} 
-      className="hover:shadow-hover transition-all mb-3 cursor-pointer"
+      className="cursor-pointer hover:shadow-hover transition-all border-border"
       onClick={() => handleTaskClick(task)}
     >
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">{task.title}</CardTitle>
-        <div className="space-y-1 mt-2">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium leading-tight">
+          {task.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {task.description && (
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            {task.description}
+          </p>
+        )}
+        
+        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
           {task.accountable_profile?.display_name && (
-            <div className="text-sm">
-              <span className="text-muted-foreground">Accountable: </span>
-              <span className="font-medium">{task.accountable_profile.display_name}</span>
+            <div className="flex items-center gap-1">
+              <UserIcon className="h-3 w-3" />
+              <span className="text-foreground">Accountable:</span>
+              <span>{task.accountable_profile.display_name}</span>
             </div>
           )}
           {task.responsible_users && task.responsible_users.length > 0 && (
-            <div className="text-sm">
-              <span className="text-muted-foreground">Responsible: </span>
-              <span className="font-medium">
+            <div className="flex items-center gap-1">
+              <UserIcon className="h-3 w-3" />
+              <span className="text-foreground">Responsible:</span>
+              <span>
                 {task.responsible_users
                   .map(ru => ru.profiles?.display_name || 'Unknown')
                   .join(', ')}
               </span>
             </div>
           )}
+          {task.due_date && (
+            <div className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
+            </div>
+          )}
         </div>
-      </CardHeader>
+      </CardContent>
     </Card>
   );
 
@@ -218,6 +239,11 @@ export default function MyTasks() {
               <h1 className="text-2xl font-bold text-primary">
                 {projectTitle ? `${projectTitle} - Tasks` : 'Tasks'}
               </h1>
+              {projectNumber && (
+                <Badge variant="outline" className="font-mono text-xs mt-1">
+                  {projectNumber}
+                </Badge>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -246,60 +272,81 @@ export default function MyTasks() {
       <main className="flex-1 container mx-auto p-4 pb-64">
         <div className="flex gap-4 overflow-x-auto pb-4">
           {/* Unassigned Column */}
-          <div className="flex-shrink-0 w-80">
-            <Card className="h-full">
+          <div className="flex-shrink-0 w-80 space-y-3">
+            <Card className="bg-muted/50 border-dashed">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Unassigned</span>
-                  <Badge variant="secondary">{categorizedTasks.unassigned.length}</Badge>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  Unassigned
+                  <Badge variant="secondary" className="ml-auto">
+                    {categorizedTasks.unassigned.length}
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
-                {categorizedTasks.unassigned.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No unassigned tasks</p>
-                ) : (
-                  categorizedTasks.unassigned.map(renderTaskCard)
-                )}
-              </CardContent>
             </Card>
+
+            <div className="space-y-3">
+              {categorizedTasks.unassigned.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-6 text-center">
+                    <p className="text-xs text-muted-foreground">No unassigned tasks</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                categorizedTasks.unassigned.map(renderTaskCard)
+              )}
+            </div>
           </div>
 
           {/* In Progress Column */}
-          <div className="flex-shrink-0 w-80">
-            <Card className="h-full">
+          <div className="flex-shrink-0 w-80 space-y-3">
+            <Card className="bg-muted/50 border-dashed">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>In Progress</span>
-                  <Badge variant="secondary">{categorizedTasks.inProgress.length}</Badge>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  In Progress
+                  <Badge variant="secondary" className="ml-auto">
+                    {categorizedTasks.inProgress.length}
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
-                {categorizedTasks.inProgress.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No tasks in progress</p>
-                ) : (
-                  categorizedTasks.inProgress.map(renderTaskCard)
-                )}
-              </CardContent>
             </Card>
+
+            <div className="space-y-3">
+              {categorizedTasks.inProgress.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-6 text-center">
+                    <p className="text-xs text-muted-foreground">No tasks in progress</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                categorizedTasks.inProgress.map(renderTaskCard)
+              )}
+            </div>
           </div>
 
           {/* Done Column */}
-          <div className="flex-shrink-0 w-80">
-            <Card className="h-full">
+          <div className="flex-shrink-0 w-80 space-y-3">
+            <Card className="bg-muted/50 border-dashed">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Done</span>
-                  <Badge variant="secondary">{categorizedTasks.done.length}</Badge>
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  Done
+                  <Badge variant="secondary" className="ml-auto">
+                    {categorizedTasks.done.length}
+                  </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
-                {categorizedTasks.done.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No completed tasks</p>
-                ) : (
-                  categorizedTasks.done.map(renderTaskCard)
-                )}
-              </CardContent>
             </Card>
+
+            <div className="space-y-3">
+              {categorizedTasks.done.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-6 text-center">
+                    <p className="text-xs text-muted-foreground">No completed tasks</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                categorizedTasks.done.map(renderTaskCard)
+              )}
+            </div>
           </div>
         </div>
       </main>
