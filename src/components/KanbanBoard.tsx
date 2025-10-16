@@ -304,9 +304,8 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
                {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
                     <div className="space-y-1">
                       {backlog === 'completed' ? (
-                        <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center text-xs">
                           <span className="font-semibold text-emerald-600 dark:text-emerald-400">✓ Completed</span>
-                          <span className="text-muted-foreground">{projectTaskStats[project.id].total} tasks</span>
                         </div>
                       ) : (
                         <>

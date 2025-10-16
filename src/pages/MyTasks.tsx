@@ -72,10 +72,10 @@ export default function MyTasks() {
       .select('*');
     
     if (projectId) {
-      // Fetch project title and backlog
+      // Fetch project title, backlog, and status
       const { data: projectData } = await supabase
         .from('projects')
-        .select('title, backlog')
+        .select('title, backlog, status')
         .eq('id', projectId)
         .single();
       
@@ -83,10 +83,14 @@ export default function MyTasks() {
         setProjectTitle(projectData.title);
         setProjectBacklog(projectData.backlog || '');
         
-        // Filter tasks by project and current backlog
-        query = query
-          .eq('project_id', projectId)
-          .eq('backlog', projectData.backlog);
+        // Filter tasks by project
+        query = query.eq('project_id', projectId);
+        
+        // For active projects, only show tasks from current backlog
+        // For completed projects, show all tasks from all backlogs
+        if (projectData.status !== 'completed') {
+          query = query.eq('backlog', projectData.backlog);
+        }
       }
     }
 
