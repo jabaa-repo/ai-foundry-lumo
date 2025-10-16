@@ -248,9 +248,20 @@ export default function BacklogTaskGenerationDialog({
         }
       }
 
+      // Update project backlog to next stage
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ 
+          backlog: nextBacklog as 'business_innovation' | 'engineering' | 'outcomes_adoption',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', projectId);
+
+      if (updateError) throw updateError;
+
       toast({
         title: "Success",
-        description: `${allTasks.length} tasks added for ${nextBacklog} phase`,
+        description: `${allTasks.length} tasks added and project moved to ${nextBacklog} phase`,
       });
 
       onSuccess();
