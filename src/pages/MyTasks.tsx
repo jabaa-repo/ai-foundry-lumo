@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import AIChatZone from "@/components/AIChatZone";
 import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 import { MoveToNextBacklogButton } from "@/components/MoveToNextBacklogButton";
+import { MoveToCompletedButton } from "@/components/MoveToCompletedButton";
 
 interface ResponsibleUser {
   user_id: string;
@@ -217,11 +218,19 @@ export default function MyTasks() {
           </div>
           <div className="flex items-center gap-2">
             {projectId && projectBacklog && (
-              <MoveToNextBacklogButton 
-                projectId={projectId}
-                currentBacklog={projectBacklog}
-                onSuccess={fetchMyTasks}
-              />
+              <>
+                <MoveToNextBacklogButton 
+                  projectId={projectId}
+                  currentBacklog={projectBacklog}
+                  onSuccess={fetchMyTasks}
+                />
+                <MoveToCompletedButton 
+                  projectId={projectId}
+                  currentBacklog={projectBacklog}
+                  canComplete={tasks.length > 0 && tasks.every(t => t.status === 'done')}
+                  onSuccess={fetchMyTasks}
+                />
+              </>
             )}
             <Badge variant="outline" className="border-primary text-primary font-semibold">
               {tasks.length} Tasks

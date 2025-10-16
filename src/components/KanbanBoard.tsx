@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import WorkflowStepIndicator from "./WorkflowStepIndicator";
 import { MoveToNextBacklogButton } from "./MoveToNextBacklogButton";
+import { MoveToCompletedButton } from "./MoveToCompletedButton";
 
 interface Idea {
   id: string;
@@ -278,14 +279,23 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
                  </div>
                )}
 
-               {backlog !== 'completed' && (
-                 <MoveToNextBacklogButton 
-                   projectId={project.id}
-                   currentBacklog={project.backlog}
-                   onSuccess={() => onProjectUpdate?.()}
-                   className="w-full mt-2"
-                 />
-               )}
+                {backlog !== 'completed' && (
+                  <>
+                    <MoveToNextBacklogButton 
+                      projectId={project.id}
+                      currentBacklog={project.backlog}
+                      onSuccess={() => onProjectUpdate?.()}
+                      className="w-full mt-2"
+                    />
+                    <MoveToCompletedButton 
+                      projectId={project.id}
+                      currentBacklog={project.backlog}
+                      canComplete={projectTaskStats[project.id]?.completed === projectTaskStats[project.id]?.total && projectTaskStats[project.id]?.total > 0}
+                      onSuccess={() => onProjectUpdate?.()}
+                      className="w-full mt-2"
+                    />
+                  </>
+                )}
 
                {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
                     <div className="space-y-1">

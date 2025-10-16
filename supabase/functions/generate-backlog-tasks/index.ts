@@ -77,7 +77,12 @@ Engineering Team Roles:
 - AI System Architect: Translate to Technical Specifications – Convert business requirements into detailed, build-ready documentation.
 - AI System Engineer: Build Enterprise-Scale Solutions – Implement the required systems, integrating AI components.
 - AI Data Engineer: Analytics and Continuous Delivery – Establish analytics platforms, monitor results, and support CI/CD.`,
-      'outcomes_adoption': 'Outcomes & Adoption - Focus on launch, user adoption, measuring outcomes, and iteration',
+      'outcomes_adoption': `Adoption & Outcomes Backlog - Focus on launch, user adoption, measuring outcomes, and iteration
+
+Adoption & Outcomes Team Roles:
+- Change Leadership Architect: Outcomes and Rollout Planning – Create communication, change management, and implementation strategies.
+- Education & Implementation Executive: Training and Talent – Develop training materials and identify skill gaps or new talent needs.
+- Outcomes & Analytics Executive: Monitor and Improve – Track outcomes, review analytics, and feed insights back into continuous improvement.`,
     };
 
     const systemPrompt = `You are a project management AI assistant. Generate actionable tasks for the ${nextBacklog} backlog phase.
