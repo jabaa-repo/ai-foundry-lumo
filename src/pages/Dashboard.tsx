@@ -13,6 +13,7 @@ import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
 import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
+import huboLogo from "@/assets/hubo-logo.png";
 
 interface Idea {
   id: string;
@@ -165,9 +166,12 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-card border-b border-border shadow-soft sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">LUMO</h1>
-            <p className="text-xs text-muted-foreground">An AI-Foundry Product</p>
+          <div className="flex items-center gap-3">
+            <img src={huboLogo} alt="Hubo" className="h-10 w-auto" />
+            <div>
+              <h1 className="text-2xl font-bold text-primary">hubo</h1>
+              <p className="text-xs text-muted-foreground">From source to success</p>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">

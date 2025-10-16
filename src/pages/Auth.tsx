@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import huboLogo from "@/assets/hubo-logo.png";
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -68,11 +69,14 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-primary-light/20 to-accent-light flex items-center justify-center p-4">
       <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-3xl font-bold text-primary">LUMO</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            An AI-Foundry Product
-          </CardDescription>
+        <CardHeader className="space-y-3 flex flex-col items-center">
+          <img src={huboLogo} alt="Hubo" className="h-16 w-auto" />
+          <div className="text-center">
+            <CardTitle className="text-3xl font-bold text-primary">hubo</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              From source to success
+            </CardDescription>
+          </div>
           <CardDescription>
             {isLogin
               ? "Sign in to your account to continue"
