@@ -147,7 +147,7 @@ export default function MyTasks() {
   };
 
   const categorizedTasks = {
-    unassigned: tasks.filter(t => !t.assigned_to),
+    unassigned: tasks.filter(t => t.status === 'unassigned'),
     inProgress: tasks.filter(t => t.status === 'in_progress'),
     done: tasks.filter(t => t.status === 'done')
   };

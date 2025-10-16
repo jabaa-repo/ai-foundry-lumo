@@ -218,7 +218,7 @@ export default function BacklogTaskGenerationDialog({
         accountable_role: task.accountable_role,
         responsible_role: task.responsible_role,
         backlog: nextBacklog as 'business_innovation' | 'engineering' | 'outcomes_adoption',
-        status: 'in_progress' as const,
+        status: 'unassigned' as const,
       }));
 
       const { data: insertedTasks, error: tasksError } = await supabase
