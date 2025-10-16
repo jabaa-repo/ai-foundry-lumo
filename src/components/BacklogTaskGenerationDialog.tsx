@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Plus, Trash2, Paperclip, X } from "lucide-react";
+import { Loader2, Sparkles, Plus, Trash2, Paperclip, X, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -45,7 +45,27 @@ export default function BacklogTaskGenerationDialog({
   const [newTaskResponsible, setNewTaskResponsible] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState<string>("");
+  const [projectDetails, setProjectDetails] = useState<any>(null);
   const { toast } = useToast();
+
+  // Fetch project details when dialog opens
+  useEffect(() => {
+    if (open && projectId) {
+      fetchProjectDetails();
+    }
+  }, [open, projectId]);
+
+  const fetchProjectDetails = async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('title, description, project_brief, desired_outcomes')
+      .eq('id', projectId)
+      .single();
+
+    if (!error && data) {
+      setProjectDetails(data);
+    }
+  };
 
   const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -255,11 +275,34 @@ export default function BacklogTaskGenerationDialog({
             Generate Tasks for {nextBacklog === 'engineering' ? 'Engineering' : 'Outcomes & Adoption'}
           </DialogTitle>
           <DialogDescription>
-            AI will consider previous backlog tasks and attachments to generate relevant tasks
+            AI will analyze the project brief and previous backlog work to generate relevant tasks
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Project Brief Info */}
+          {projectDetails && (
+            <Card className="bg-muted/50">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <h4 className="font-semibold text-sm">Project Context</h4>
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <p><span className="font-medium">Title:</span> {projectDetails.title}</p>
+                      {projectDetails.project_brief && (
+                        <p><span className="font-medium">Brief:</span> {projectDetails.project_brief}</p>
+                      )}
+                      {projectDetails.desired_outcomes && (
+                        <p><span className="font-medium">Desired Outcomes:</span> {projectDetails.desired_outcomes}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* File Attachment */}
           <div className="space-y-2">
             <Label>Attach Additional Context (Optional)</Label>
