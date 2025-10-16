@@ -79,19 +79,19 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
   };
 
   const fetchTaskStats = async (projectIds: string[]) => {
-    // Fetch projects to get their current backlog
+    // Fetch projects to get their current backlog and status
     const { data: projectsData, error: projectsError } = await supabase
       .from('projects')
-      .select('id, backlog')
+      .select('id, backlog, status')
       .in('id', projectIds);
 
     if (projectsError || !projectsData) return;
 
-    // Create a map of project_id to backlog
-    const projectBacklogMap = projectsData.reduce((acc, p) => {
-      acc[p.id] = p.backlog;
+    // Create a map of project_id to backlog and status
+    const projectInfoMap = projectsData.reduce((acc, p) => {
+      acc[p.id] = { backlog: p.backlog, status: p.status };
       return acc;
-    }, {} as Record<string, string>);
+    }, {} as Record<string, { backlog: string; status: string }>);
 
     const { data, error } = await supabase
       .from('tasks')
@@ -102,9 +102,13 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
       const statsMap = data.reduce((acc, task) => {
         if (!task.project_id) return acc;
         
-        // Only count tasks from the current backlog
-        const currentBacklog = projectBacklogMap[task.project_id];
-        if (task.backlog !== currentBacklog) return acc;
+        const projectInfo = projectInfoMap[task.project_id];
+        
+        // For completed projects, count ALL tasks from all backlogs
+        // For active projects, only count tasks from the current backlog
+        if (projectInfo.status !== 'completed' && task.backlog !== projectInfo.backlog) {
+          return acc;
+        }
         
         if (!acc[task.project_id]) {
           acc[task.project_id] = { total: 0, completed: 0 };
@@ -299,14 +303,23 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
 
                {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
                     <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Progress</span>
-                        <span>{projectTaskStats[project.id].completed}/{projectTaskStats[project.id].total} tasks</span>
-                      </div>
-                      <Progress 
-                        value={(projectTaskStats[project.id].completed / projectTaskStats[project.id].total) * 100} 
-                        className="h-2"
-                      />
+                      {backlog === 'completed' ? (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">✓ Completed</span>
+                          <span className="text-muted-foreground">{projectTaskStats[project.id].total} tasks</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Progress</span>
+                            <span>{projectTaskStats[project.id].completed}/{projectTaskStats[project.id].total} tasks</span>
+                          </div>
+                          <Progress 
+                            value={(projectTaskStats[project.id].completed / projectTaskStats[project.id].total) * 100} 
+                            className="h-2"
+                          />
+                        </>
+                      )}
                     </div>
                   )}
 
