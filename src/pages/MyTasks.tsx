@@ -142,9 +142,7 @@ export default function MyTasks() {
 
   const categorizedTasks = {
     unassigned: tasks.filter(t => !t.assigned_to),
-    todo: tasks.filter(t => t.assigned_to && t.status === 'todo'),
     inProgress: tasks.filter(t => t.status === 'in_progress'),
-    underReview: tasks.filter(t => t.status === 'blocked'),
     done: tasks.filter(t => t.status === 'done')
   };
 
@@ -238,25 +236,6 @@ export default function MyTasks() {
             </Card>
           </div>
 
-          {/* To Do Column */}
-          <div className="flex-shrink-0 w-80">
-            <Card className="h-full">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>To Do</span>
-                  <Badge variant="secondary">{categorizedTasks.todo.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
-                {categorizedTasks.todo.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No tasks to do</p>
-                ) : (
-                  categorizedTasks.todo.map(renderTaskCard)
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
           {/* In Progress Column */}
           <div className="flex-shrink-0 w-80">
             <Card className="h-full">
@@ -271,25 +250,6 @@ export default function MyTasks() {
                   <p className="text-sm text-muted-foreground text-center py-8">No tasks in progress</p>
                 ) : (
                   categorizedTasks.inProgress.map(renderTaskCard)
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Under Review Column */}
-          <div className="flex-shrink-0 w-80">
-            <Card className="h-full">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center justify-between">
-                  <span>Under Review</span>
-                  <Badge variant="secondary">{categorizedTasks.underReview.length}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="max-h-[calc(100vh-250px)] overflow-y-auto">
-                {categorizedTasks.underReview.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No tasks under review</p>
-                ) : (
-                  categorizedTasks.underReview.map(renderTaskCard)
                 )}
               </CardContent>
             </Card>

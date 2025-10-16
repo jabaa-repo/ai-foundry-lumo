@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Send, Paperclip, Download, Trash2, X, Check } from "lucide-react";
 import { format } from "date-fns";
+import { checkAndProgressProjectBacklog } from "@/utils/projectBacklogProgression";
 
 interface Task {
   id: string;
@@ -23,6 +24,7 @@ interface Task {
   assigned_to?: string;
   responsible_role?: string;
   accountable_role?: string;
+  project_id?: string;
 }
 
 interface ResponsibleUser {
@@ -338,6 +340,16 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   };
 
   const handleActivityToggle = async (activityId: string, completed: boolean) => {
+    if (!task) return;
+
+    // If task is done and user is unchecking an activity, ask for confirmation
+    if (task.status === 'done' && !completed) {
+      const confirmed = window.confirm(
+        "Unmarking this checklist will change the task status back to 'In Progress'. Do you want to continue?"
+      );
+      if (!confirmed) return;
+    }
+
     const { error } = await supabase
       .from("task_activities")
       .update({ completed })
@@ -346,6 +358,60 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     if (error) {
       toast({ title: "Error", description: "Failed to update activity", variant: "destructive" });
       return;
+    }
+
+    // Check if all activities are completed after this update
+    const updatedActivities = activities.map(a => 
+      a.id === activityId ? { ...a, completed } : a
+    );
+    
+    const allCompleted = updatedActivities.length > 0 && updatedActivities.every(a => a.completed);
+    
+    // Auto-update task status based on checklist completion
+    if (allCompleted && task.status !== 'done') {
+      const { error: statusError } = await supabase
+        .from("tasks")
+        .update({ status: 'done' })
+        .eq("id", task.id);
+
+      if (!statusError) {
+        toast({ 
+          title: "Task Completed!", 
+          description: "All checklists are complete. Task status changed to Done." 
+        });
+        
+        // Check if project should progress to next backlog
+        if (task.project_id) {
+          const nextBacklog = await checkAndProgressProjectBacklog(task.project_id);
+          if (nextBacklog) {
+            const backlogNames: Record<string, string> = {
+              'engineering': 'Engineering',
+              'outcomes_adoption': 'Outcomes & Adoption',
+              'completed': 'Completed Projects'
+            };
+            toast({
+              title: "Project Progressed!",
+              description: `All tasks complete. Project moved to ${backlogNames[nextBacklog] || nextBacklog}.`
+            });
+          }
+        }
+        
+        onTaskUpdate();
+      }
+    } else if (!completed && task.status === 'done') {
+      // Change back to in_progress if unchecking while done
+      const { error: statusError } = await supabase
+        .from("tasks")
+        .update({ status: 'in_progress' })
+        .eq("id", task.id);
+
+      if (!statusError) {
+        toast({ 
+          title: "Task Reopened", 
+          description: "Task status changed back to In Progress." 
+        });
+        onTaskUpdate();
+      }
     }
 
     fetchActivities();
@@ -626,9 +692,9 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       due_date: new Date(dueDate).toISOString(),
     };
 
-    // Update status to 'todo' if accountable person was just assigned
+    // Update status to 'in_progress' if accountable person was just assigned
     if (originalTask?.assigned_to !== accountableUser) {
-      updates.status = 'todo';
+      updates.status = 'in_progress';
     }
 
     const { error } = await supabase
