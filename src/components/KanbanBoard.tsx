@@ -125,9 +125,9 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
   const inboxIdeas = ideas.filter(idea => idea.status === 'inbox');
 
   const projectsByBacklog = {
-    business_innovation: projects.filter(p => p.backlog === 'business_innovation'),
-    engineering: projects.filter(p => p.backlog === 'engineering'),
-    outcomes_adoption: projects.filter(p => p.backlog === 'outcomes_adoption'),
+    business_innovation: projects.filter(p => p.backlog === 'business_innovation' && p.status !== 'completed'),
+    engineering: projects.filter(p => p.backlog === 'engineering' && p.status !== 'completed'),
+    outcomes_adoption: projects.filter(p => p.backlog === 'outcomes_adoption' && p.status !== 'completed'),
     completed: projects.filter(p => p.status === 'completed'),
   };
 

@@ -38,17 +38,22 @@ export function MoveToCompletedButton({
     try {
       const { error } = await supabase
         .from("projects")
-        .update({ status: "completed" })
+        .update({ 
+          status: "completed"
+        })
         .eq("id", projectId);
 
       if (error) throw error;
 
+      // Show celebration
+      setShowConfirmDialog(false);
+      showCelebration();
+
       toast({
-        title: "Project Completed",
-        description: "Project has been moved to completed status",
+        title: "🎉 Congratulations!",
+        description: "Project completed successfully!",
       });
 
-      setShowConfirmDialog(false);
       if (onSuccess) {
         onSuccess();
       }
@@ -64,6 +69,27 @@ export function MoveToCompletedButton({
     }
   };
 
+  const showCelebration = () => {
+    // Create celebration overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'celebration-overlay';
+    overlay.innerHTML = `
+      <div class="celebration-content">
+        <div class="fireworks"></div>
+        <div class="fireworks"></div>
+        <div class="fireworks"></div>
+        <h2 class="celebration-text">🎉 Congratulations! 🎉</h2>
+        <p class="celebration-subtext">Project Completed Successfully!</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    // Remove after animation
+    setTimeout(() => {
+      overlay.remove();
+    }, 4000);
+  };
+
   if (currentBacklog !== "outcomes_adoption" || !canComplete) {
     return null;
   }
@@ -71,7 +97,10 @@ export function MoveToCompletedButton({
   return (
     <>
       <Button
-        onClick={() => setShowConfirmDialog(true)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowConfirmDialog(true);
+        }}
         disabled={isLoading}
         size="sm"
         variant="outline"

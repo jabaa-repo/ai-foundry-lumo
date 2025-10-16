@@ -51,7 +51,10 @@ export function MoveToNextBacklogButton({
   return (
     <>
       <Button
-        onClick={handleProgress}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleProgress();
+        }}
         disabled={isLoading}
         size="sm"
         variant="outline"

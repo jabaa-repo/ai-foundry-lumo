@@ -88,3 +88,80 @@
     @apply transition-all duration-200;
   }
 }
+
+/* Celebration Animation Styles */
+.celebration-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fade-in 0.3s ease-out;
+}
+
+.celebration-content {
+  position: relative;
+  text-align: center;
+  z-index: 10000;
+}
+
+.celebration-text {
+  font-size: 3rem;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 1rem;
+  animation: scale-in 0.5s ease-out;
+}
+
+.celebration-subtext {
+  font-size: 1.5rem;
+  color: white;
+  animation: fade-in 0.8s ease-out;
+}
+
+.fireworks {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  animation: firework 1.5s ease-out infinite;
+}
+
+.fireworks:nth-child(1) {
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.fireworks:nth-child(2) {
+  left: 50%;
+  animation-delay: 0.5s;
+}
+
+.fireworks:nth-child(3) {
+  left: 80%;
+  animation-delay: 1s;
+}
+
+@keyframes firework {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+    box-shadow: 0 0 0 0 hsl(var(--primary)),
+                0 0 0 0 hsl(var(--primary)),
+                0 0 0 0 hsl(var(--primary)),
+                0 0 0 0 hsl(var(--primary));
+  }
+  100% {
+    transform: translate(0, -200px);
+    opacity: 0;
+    box-shadow: 0 50px 0 20px gold,
+                50px 0 0 20px #ff6b6b,
+                -50px 0 0 20px #4ecdc4,
+                0 -50px 0 20px #95e1d3;
+  }
+}
