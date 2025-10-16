@@ -10,6 +10,13 @@ import { useToast } from "@/hooks/use-toast";
 import AIChatZone from "@/components/AIChatZone";
 import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 
+interface ResponsibleUser {
+  user_id: string;
+  profiles: {
+    display_name: string | null;
+  } | null;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -27,6 +34,10 @@ interface Task {
   progress?: number;
   responsible_role?: string | null;
   accountable_role?: string | null;
+  accountable_profile?: {
+    display_name: string | null;
+  } | null;
+  responsible_users?: ResponsibleUser[];
 }
 
 export default function MyTasks() {
@@ -53,7 +64,9 @@ export default function MyTasks() {
 
   const fetchMyTasks = async () => {
     // Fetch tasks for the specific project
-    let query = supabase.from('tasks').select('*');
+    let query = supabase
+      .from('tasks')
+      .select('*');
     
     if (projectId) {
       query = query.eq('project_id', projectId);
@@ -78,9 +91,53 @@ export default function MyTasks() {
         title: "Error",
         description: "Failed to fetch tasks",
       });
-    } else {
-      setTasks(data || []);
+      setTasks([]);
+      return;
     }
+
+    // Fetch accountable profiles and responsible users for all tasks
+    const tasksWithDetails = await Promise.all(
+      (data || []).map(async (task) => {
+        // Fetch accountable profile
+        let accountable_profile = null;
+        if (task.assigned_to) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('id', task.assigned_to)
+            .single();
+          accountable_profile = profileData;
+        }
+
+        // Fetch responsible users with their profiles separately
+        const { data: responsibleLinks } = await supabase
+          .from('task_responsible_users')
+          .select('user_id')
+          .eq('task_id', task.id);
+
+        let responsible_users: ResponsibleUser[] = [];
+        if (responsibleLinks && responsibleLinks.length > 0) {
+          const userIds = responsibleLinks.map(r => r.user_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', userIds);
+
+          responsible_users = responsibleLinks.map(link => ({
+            user_id: link.user_id,
+            profiles: profiles?.find(p => p.id === link.user_id) || null
+          }));
+        }
+        
+        return {
+          ...task,
+          accountable_profile,
+          responsible_users
+        };
+      })
+    );
+
+    setTasks(tasksWithDetails);
   };
 
   const categorizedTasks = {
@@ -118,21 +175,25 @@ export default function MyTasks() {
     >
       <CardHeader className="pb-3">
         <CardTitle className="text-base">{task.title}</CardTitle>
+        <div className="space-y-1 mt-2">
+          {task.accountable_profile?.display_name && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Accountable: </span>
+              <span className="font-medium">{task.accountable_profile.display_name}</span>
+            </div>
+          )}
+          {task.responsible_users && task.responsible_users.length > 0 && (
+            <div className="text-sm">
+              <span className="text-muted-foreground">Responsible: </span>
+              <span className="font-medium">
+                {task.responsible_users
+                  .map(ru => ru.profiles?.display_name || 'Unknown')
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {task.responsible_role && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">Responsible: </span>
-            <span className="font-medium">{task.responsible_role}</span>
-          </div>
-        )}
-        {task.accountable_role && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">Accountable: </span>
-            <span className="font-medium">{task.accountable_role}</span>
-          </div>
-        )}
-      </CardContent>
     </Card>
   );
 

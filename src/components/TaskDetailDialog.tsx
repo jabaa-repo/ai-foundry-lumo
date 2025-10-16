@@ -576,6 +576,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     setOriginalTask({ ...task, ...updates });
     onTaskUpdate();
     toast({ title: "Success", description: "Changes saved successfully" });
+    onOpenChange(false); // Close modal after successful save
   };
 
   if (!task) return null;
@@ -583,13 +584,12 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex flex-row items-center justify-between">
+        <DialogHeader className="flex-row items-center justify-between space-y-0 pb-4">
           <DialogTitle className="text-2xl">{task.title}</DialogTitle>
           <Button 
             onClick={handleDone} 
             disabled={!hasChanges}
             size="sm"
-            className="ml-auto"
           >
             <Check className="w-4 h-4 mr-2" />
             Done
@@ -876,14 +876,34 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                   </div>
                 ))}
 
-                <div className="flex flex-col gap-2 pt-4">
+                <div className="space-y-2 pt-4 border-t">
                   <Textarea
                     placeholder="Add a comment..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     className="min-h-[80px]"
                   />
-                  <div className="flex justify-end">
+                  <div className="flex justify-between items-center gap-2">
+                    <label htmlFor="new-comment-file">
+                      <Button variant="outline" size="sm" disabled={uploadingFile} asChild>
+                        <span className="cursor-pointer">
+                          <Paperclip className="w-4 h-4 mr-2" />
+                          Attach File
+                        </span>
+                      </Button>
+                    </label>
+                    <input
+                      id="new-comment-file"
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Store file temporarily until comment is added
+                          // For now, we'll handle it on send
+                        }
+                      }}
+                    />
                     <Button onClick={handleAddComment} size="sm">
                       <Send className="w-4 h-4 mr-2" />
                       Send
