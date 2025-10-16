@@ -9,6 +9,7 @@ import { ArrowLeft, Calendar, User as UserIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AIChatZone from "@/components/AIChatZone";
 import { TaskDetailDialog } from "@/components/TaskDetailDialog";
+import { MoveToNextBacklogButton } from "@/components/MoveToNextBacklogButton";
 
 interface ResponsibleUser {
   user_id: string;
@@ -44,6 +45,7 @@ export default function MyTasks() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projectTitle, setProjectTitle] = useState<string>("");
+  const [projectBacklog, setProjectBacklog] = useState<string>("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchParams] = useSearchParams();
@@ -71,15 +73,16 @@ export default function MyTasks() {
     if (projectId) {
       query = query.eq('project_id', projectId);
       
-      // Fetch project title
+      // Fetch project title and backlog
       const { data: projectData } = await supabase
         .from('projects')
-        .select('title')
+        .select('title, backlog')
         .eq('id', projectId)
         .single();
       
       if (projectData) {
         setProjectTitle(projectData.title);
+        setProjectBacklog(projectData.backlog || '');
       }
     }
 
@@ -209,9 +212,18 @@ export default function MyTasks() {
               </h1>
             </div>
           </div>
-          <Badge variant="outline" className="border-primary text-primary font-semibold">
-            {tasks.length} Tasks
-          </Badge>
+          <div className="flex items-center gap-2">
+            {projectId && projectBacklog && (
+              <MoveToNextBacklogButton 
+                projectId={projectId}
+                currentBacklog={projectBacklog}
+                onSuccess={fetchMyTasks}
+              />
+            )}
+            <Badge variant="outline" className="border-primary text-primary font-semibold">
+              {tasks.length} Tasks
+            </Badge>
+          </div>
         </div>
       </header>
 

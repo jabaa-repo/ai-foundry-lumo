@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import WorkflowStepIndicator from "./WorkflowStepIndicator";
+import { MoveToNextBacklogButton } from "./MoveToNextBacklogButton";
 
 interface Idea {
   id: string;
@@ -32,9 +33,10 @@ interface KanbanBoardProps {
   projects: any[];
   onIdeaClick: (idea: Idea) => void;
   onProjectClick: (project: any) => void;
+  onProjectUpdate?: () => void;
 }
 
-export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectClick }: KanbanBoardProps) {
+export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectClick, onProjectUpdate }: KanbanBoardProps) {
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [projectTaskStats, setProjectTaskStats] = useState<Record<string, { total: number; completed: number }>>({});
 
@@ -250,15 +252,24 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
                           {dept}
                         </Badge>
                       ))}
-                      {project.departments.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{project.departments.length - 2}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
+                   {project.departments.length > 2 && (
+                     <Badge variant="outline" className="text-xs">
+                       +{project.departments.length - 2}
+                     </Badge>
+                   )}
+                 </div>
+               )}
 
-                  {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
+               {backlog !== 'completed' && (
+                 <MoveToNextBacklogButton 
+                   projectId={project.id}
+                   currentBacklog={project.backlog}
+                   onSuccess={() => onProjectUpdate?.()}
+                   className="w-full mt-2"
+                 />
+               )}
+
+               {projectTaskStats[project.id] && projectTaskStats[project.id].total > 0 && (
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Progress</span>
