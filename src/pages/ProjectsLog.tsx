@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, TrendingUp, Code, Target } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import WorkflowStepIndicator from "@/components/WorkflowStepIndicator";
 
 interface Project {
   id: string;
@@ -25,18 +25,29 @@ interface Project {
   last_activity_date?: string;
 }
 
+interface ProjectStats {
+  projectId: string;
+  totalTasks: number;
+  completedTasks: number;
+  unassignedTasks: number;
+  inProgressTasks: number;
+  completionPercentage: number;
+}
+
 export default function ProjectsLog() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectStats, setProjectStats] = useState<Map<string, ProjectStats>>(new Map());
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProjects();
+    fetchProjectsAndStats();
     
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('schema-db-changes')
+    // Set up realtime subscriptions
+    const projectsChannel = supabase
+      .channel('projects-changes')
       .on(
         'postgres_changes',
         {
@@ -44,69 +55,84 @@ export default function ProjectsLog() {
           schema: 'public',
           table: 'projects'
         },
-        () => fetchProjects()
+        () => fetchProjectsAndStats()
+      )
+      .subscribe();
+
+    const tasksChannel = supabase
+      .channel('tasks-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'tasks'
+        },
+        () => fetchProjectsAndStats()
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(projectsChannel);
+      supabase.removeChannel(tasksChannel);
     };
   }, []);
 
-  const fetchProjects = async () => {
-    const { data, error } = await supabase
+  const fetchProjectsAndStats = async () => {
+    setLoading(true);
+    
+    // Fetch projects
+    const { data: projectsData, error: projectsError } = await supabase
       .from('projects')
       .select('*')
+      .neq('status', 'archived')
       .order('last_activity_date', { ascending: false });
 
-    if (error) {
+    if (projectsError) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to fetch projects",
       });
-    } else {
-      setProjects((data || []) as any);
+      setLoading(false);
+      return;
     }
+
+    setProjects((projectsData || []) as any);
+
+    // Fetch task statistics for all projects
+    const statsMap = new Map<string, ProjectStats>();
+    
+    for (const project of projectsData || []) {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('status, assigned_to')
+        .eq('project_id', project.id);
+
+      const totalTasks = tasks?.length || 0;
+      const completedTasks = tasks?.filter(t => t.status === 'done').length || 0;
+      const unassignedTasks = tasks?.filter(t => !t.assigned_to).length || 0;
+      const inProgressTasks = tasks?.filter(t => t.status === 'in_progress').length || 0;
+      const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      statsMap.set(project.id, {
+        projectId: project.id,
+        totalTasks,
+        completedTasks,
+        unassignedTasks,
+        inProgressTasks,
+        completionPercentage,
+      });
+    }
+
+    setProjectStats(statsMap);
+    setLoading(false);
   };
 
   const filteredProjects = projects.filter((project) =>
     project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (project.project_number && project.project_number.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-
-  const projectsByBacklog = {
-    business_innovation: filteredProjects.filter(p => p.backlog === 'business_innovation'),
-    engineering: filteredProjects.filter(p => p.backlog === 'engineering'),
-    outcomes_adoption: filteredProjects.filter(p => p.backlog === 'outcomes_adoption'),
-  };
-
-  const getBacklogIcon = (backlog: string) => {
-    switch (backlog) {
-      case 'business_innovation': return <TrendingUp className="h-5 w-5" />;
-      case 'engineering': return <Code className="h-5 w-5" />;
-      case 'outcomes_adoption': return <Target className="h-5 w-5" />;
-      default: return null;
-    }
-  };
-
-  const getBacklogTitle = (backlog: string) => {
-    switch (backlog) {
-      case 'business_innovation': return 'Business Innovation';
-      case 'engineering': return 'Engineering';
-      case 'outcomes_adoption': return 'Outcomes & Adoption';
-      default: return backlog;
-    }
-  };
-
-  const getBacklogColor = (backlog: string) => {
-    switch (backlog) {
-      case 'business_innovation': return 'bg-blue-500/10 border-blue-500/20';
-      case 'engineering': return 'bg-green-500/10 border-green-500/20';
-      case 'outcomes_adoption': return 'bg-purple-500/10 border-purple-500/20';
-      default: return 'bg-muted';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,7 +151,7 @@ export default function ProjectsLog() {
       </header>
 
       <main className="container mx-auto p-4 space-y-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -137,78 +163,72 @@ export default function ProjectsLog() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {(['business_innovation', 'engineering', 'outcomes_adoption'] as const).map((backlog) => (
-            <div key={backlog} className="space-y-3">
-              <div className={`p-4 rounded-lg border ${getBacklogColor(backlog)}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  {getBacklogIcon(backlog)}
-                  <h3 className="font-bold text-lg">{getBacklogTitle(backlog)}</h3>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {projectsByBacklog[backlog].length} {projectsByBacklog[backlog].length === 1 ? 'project' : 'projects'}
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading projects...</p>
+          </div>
+        ) : (
+          <div className="bg-card border border-border rounded-lg shadow-soft overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="font-bold">Project ID</TableHead>
+                  <TableHead className="font-bold">Title</TableHead>
+                  <TableHead className="font-bold text-center">Total Tasks</TableHead>
+                  <TableHead className="font-bold text-center">Completed</TableHead>
+                  <TableHead className="font-bold text-center">Unassigned</TableHead>
+                  <TableHead className="font-bold text-center">In Progress</TableHead>
+                  <TableHead className="font-bold">% Completion</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.map((project) => {
+                  const stats = projectStats.get(project.id);
+                  return (
+                    <TableRow key={project.id} className="hover:bg-muted/50 cursor-pointer">
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono">
+                          {project.project_number || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{project.title}</TableCell>
+                      <TableCell className="text-center">{stats?.totalTasks || 0}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-green-600 dark:text-green-400 font-semibold">
+                          {stats?.completedTasks || 0}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-orange-600 dark:text-orange-400 font-semibold">
+                          {stats?.unassignedTasks || 0}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold">
+                          {stats?.inProgressTasks || 0}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Progress value={stats?.completionPercentage || 0} className="w-24" />
+                          <span className="text-sm font-semibold min-w-[3rem]">
+                            {stats?.completionPercentage || 0}%
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+
+            {filteredProjects.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  {searchTerm ? `No projects found matching "${searchTerm}"` : 'No projects found'}
                 </p>
               </div>
-
-              <div className="space-y-3">
-                {projectsByBacklog[backlog].map((project) => (
-                  <Card key={project.id} className="hover:shadow-hover transition-all cursor-pointer">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <CardTitle className="text-base leading-tight">{project.title}</CardTitle>
-                      </div>
-                      {project.project_number && (
-                        <Badge variant="outline" className="w-fit text-xs">
-                          {project.project_number}
-                        </Badge>
-                      )}
-                      {project.workflow_step !== undefined && (
-                        <div className="mt-2">
-                          <WorkflowStepIndicator step={project.workflow_step} compact />
-                        </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {project.project_brief && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Brief</p>
-                          <p className="text-sm line-clamp-2">
-                            {project.project_brief}
-                          </p>
-                        </div>
-                      )}
-
-                      {project.desired_outcomes && (
-                        <div>
-                          <p className="text-xs text-muted-foreground">Outcomes</p>
-                          <p className="text-sm line-clamp-2">
-                            {project.desired_outcomes}
-                          </p>
-                        </div>
-                      )}
-
-                      <p className="text-xs text-muted-foreground">
-                        Updated: {new Date(project.last_activity_date || project.updated_at).toLocaleDateString()}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {projectsByBacklog[backlog].length === 0 && (
-                  <Card className="border-dashed">
-                    <CardContent className="py-8 text-center">
-                      <p className="text-sm text-muted-foreground">No projects in this backlog</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredProjects.length === 0 && searchTerm && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No projects found matching "{searchTerm}"</p>
+            )}
           </div>
         )}
       </main>
