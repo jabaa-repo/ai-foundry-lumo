@@ -107,6 +107,7 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
     business_innovation: projects.filter(p => p.backlog === 'business_innovation'),
     engineering: projects.filter(p => p.backlog === 'engineering'),
     outcomes_adoption: projects.filter(p => p.backlog === 'outcomes_adoption'),
+    completed: projects.filter(p => p.status === 'completed'),
   };
 
   const getBacklogIcon = (backlog: string) => {
@@ -114,6 +115,7 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
       case 'business_innovation': return <TrendingUp className="h-4 w-4" />;
       case 'engineering': return <Code className="h-4 w-4" />;
       case 'outcomes_adoption': return <Target className="h-4 w-4" />;
+      case 'completed': return <CheckSquare className="h-4 w-4" />;
       default: return null;
     }
   };
@@ -123,6 +125,7 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
       case 'business_innovation': return 'Business & Innovation';
       case 'engineering': return 'Engineering';
       case 'outcomes_adoption': return 'Outcomes & Adoption';
+      case 'completed': return 'Completed Projects';
       default: return backlog;
     }
   };
@@ -132,12 +135,13 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
       case 'business_innovation': return 'border-blue-500/30 bg-blue-500/5';
       case 'engineering': return 'border-green-500/30 bg-green-500/5';
       case 'outcomes_adoption': return 'border-purple-500/30 bg-purple-500/5';
+      case 'completed': return 'border-emerald-500/30 bg-emerald-500/5';
       default: return 'border-border';
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
       {/* Inbox Column */}
       <div className="space-y-3">
         <Card className="bg-muted/50 border-dashed">
@@ -201,7 +205,7 @@ export default function KanbanBoard({ ideas, projects, onIdeaClick, onProjectCli
       </div>
 
       {/* Backlog Columns */}
-      {(['business_innovation', 'engineering', 'outcomes_adoption'] as const).map((backlog) => (
+      {(['business_innovation', 'engineering', 'outcomes_adoption', 'completed'] as const).map((backlog) => (
         <div key={backlog} className="space-y-3">
           <Card className={`border-2 ${getBacklogColor(backlog)}`}>
             <CardHeader className="pb-3">
