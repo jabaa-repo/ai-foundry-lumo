@@ -115,6 +115,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [uploadingFile, setUploadingFile] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalTask, setOriginalTask] = useState<Task | null>(null);
+  const [pendingCommentFile, setPendingCommentFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -481,15 +482,46 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from("task_comments").insert({
+    const { data: commentData, error } = await supabase.from("task_comments").insert({
       task_id: task.id,
       user_id: user.id,
       content: newComment.trim(),
-    });
+    }).select().single();
 
     if (error) {
       toast({ title: "Error", description: "Failed to add comment", variant: "destructive" });
       return;
+    }
+
+    // Upload file if one was selected
+    if (pendingCommentFile && commentData) {
+      setUploadingFile(true);
+      try {
+        const fileExt = pendingCommentFile.name.split(".").pop();
+        const filePath = `${user.id}/${task.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("task-attachments")
+          .upload(filePath, pendingCommentFile);
+
+        if (uploadError) throw uploadError;
+
+        const { error: dbError } = await supabase.from("comment_attachments").insert({
+          comment_id: commentData.id,
+          file_name: pendingCommentFile.name,
+          file_path: filePath,
+          file_size: pendingCommentFile.size,
+          mime_type: pendingCommentFile.type,
+          uploaded_by: user.id,
+        });
+
+        if (dbError) throw dbError;
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to upload file", variant: "destructive" });
+      } finally {
+        setUploadingFile(false);
+        setPendingCommentFile(null);
+      }
     }
 
     setNewComment("");
@@ -498,6 +530,16 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   };
 
   const handleAssignAccountable = async (userId: string, displayName: string) => {
+    // Check if user is already in responsible list
+    if (responsibleUsers.some(u => u.user_id === userId)) {
+      toast({ 
+        title: "Cannot Assign", 
+        description: "This person is already assigned as responsible. A team member cannot be both responsible and accountable.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     setAccountableUser(userId);
     setAccountableSearchQuery("");
     setShowAccountableSearch(false);
@@ -511,6 +553,16 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     // Check if already added
     if (responsibleUsers.some(u => u.user_id === userId)) {
       toast({ title: "Already Added", description: "This person is already assigned as responsible" });
+      return;
+    }
+
+    // Check if user is the accountable person
+    if (accountableUser === userId) {
+      toast({ 
+        title: "Cannot Assign", 
+        description: "This person is already assigned as accountable. A team member cannot be both responsible and accountable.", 
+        variant: "destructive" 
+      });
       return;
     }
 
@@ -628,12 +680,13 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="flex-row items-center justify-between space-y-0 pb-4">
+        <DialogHeader className="flex-row items-center justify-between space-y-0 pb-4 pr-10">
           <DialogTitle className="text-2xl">{task.title}</DialogTitle>
           <Button 
             onClick={handleDone} 
             disabled={!hasChanges}
             size="sm"
+            className="mr-2"
           >
             <Check className="w-4 h-4 mr-2" />
             Done
@@ -913,27 +966,34 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                     className="min-h-[80px]"
                   />
                   <div className="flex justify-between items-center gap-2">
-                    <label htmlFor="new-comment-file">
-                      <Button variant="outline" size="sm" disabled={uploadingFile} asChild>
-                        <span className="cursor-pointer">
-                          <Paperclip className="w-4 h-4 mr-2" />
-                          Attach File
+                    <div className="flex items-center gap-2">
+                      <label htmlFor="new-comment-file">
+                        <Button variant="outline" size="sm" disabled={uploadingFile} asChild>
+                          <span className="cursor-pointer">
+                            <Paperclip className="w-4 h-4 mr-2" />
+                            Attach File
+                          </span>
+                        </Button>
+                      </label>
+                      <input
+                        id="new-comment-file"
+                        type="file"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setPendingCommentFile(file);
+                            toast({ title: "File Selected", description: file.name });
+                          }
+                        }}
+                      />
+                      {pendingCommentFile && (
+                        <span className="text-xs text-muted-foreground">
+                          {pendingCommentFile.name}
                         </span>
-                      </Button>
-                    </label>
-                    <input
-                      id="new-comment-file"
-                      type="file"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // Store file temporarily until comment is added
-                          // For now, we'll handle it on send
-                        }
-                      }}
-                    />
-                    <Button onClick={handleAddComment} size="sm">
+                      )}
+                    </div>
+                    <Button onClick={handleAddComment} size="sm" disabled={uploadingFile}>
                       <Send className="w-4 h-4 mr-2" />
                       Send
                     </Button>
