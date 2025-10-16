@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { LogOut, Plus } from "lucide-react";
 import KanbanBoard from "@/components/KanbanBoard";
@@ -12,7 +11,6 @@ import IdeaDialog from "@/components/IdeaDialog";
 import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
-import avatarPlaceholder from "@/assets/avatar-placeholder.jpg";
 import huboLogo from "@/assets/hubo-logo.png";
 
 interface Idea {
@@ -178,15 +176,6 @@ export default function Dashboard() {
             <Badge variant="outline" className="border-primary text-primary font-semibold">
               Active Tasks: {activeTasks}
             </Badge>
-            <Avatar 
-              className="h-10 w-10 cursor-pointer ring-2 ring-primary/20" 
-              onClick={() => navigate("/my-tasks")}
-            >
-              <AvatarImage src={avatarPlaceholder} alt="User avatar" />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {user?.email?.[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
             <MainMenu />
             <Button
               variant="ghost"

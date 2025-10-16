@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import AIRoleSelector from "./AIRoleSelector";
 
 const SUGGESTED_PROMPTS = [
   "Give me a round up of recent activity",
@@ -24,7 +23,6 @@ export default function AIChatZone() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("project_manager");
   const { toast } = useToast();
 
   const handleSendMessage = async (message?: string) => {
@@ -37,7 +35,7 @@ export default function AIChatZone() {
       toast({
         variant: "destructive",
         title: "Authentication Required",
-        description: "Please sign in to use LUMO chat",
+        description: "Please sign in to use Hubo chat",
       });
       return;
     }
@@ -50,8 +48,7 @@ export default function AIChatZone() {
     try {
       const { data, error } = await supabase.functions.invoke('lumo-chat', {
         body: { 
-          message: messageToSend,
-          role: selectedRole 
+          message: messageToSend
         }
       });
 
@@ -70,7 +67,7 @@ export default function AIChatZone() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to get response from LUMO. Please try again.",
+        description: error.message || "Failed to get response from Hubo. Please try again.",
       });
     } finally {
       setLoading(false);
@@ -80,8 +77,6 @@ export default function AIChatZone() {
   return (
     <div className="sticky bottom-0 bg-card border-t border-border shadow-card">
       <div className="container mx-auto p-4 space-y-3">
-        <AIRoleSelector value={selectedRole} onValueChange={setSelectedRole} />
-        
         {messages.length > 0 && (
           <div className="max-h-48 overflow-y-auto space-y-2 mb-3">
             {messages.map((msg, idx) => (
@@ -108,7 +103,7 @@ export default function AIChatZone() {
                   handleSendMessage();
                 }
               }}
-              placeholder="Ask LUMO anything about your projects, tasks, or ideas..."
+              placeholder="Ask Hubo anything about your projects, tasks, or ideas..."
               className="min-h-[60px] resize-none pr-12 border-border bg-background text-foreground"
               disabled={loading}
             />
