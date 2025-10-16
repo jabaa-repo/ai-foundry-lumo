@@ -429,6 +429,7 @@ Return only a simple bullet list of activities, one per line starting with "- "`
           project_id: project.id,
           owner_id: user.id,
           status: 'unassigned' as const,
+          backlog: 'business_innovation' as const,
           responsible_role: task.responsible_role_name || null,
           accountable_role: task.accountable_role_name || null
         }));
