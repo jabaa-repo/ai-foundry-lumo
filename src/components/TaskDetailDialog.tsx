@@ -102,6 +102,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [taskAttachments, setTaskAttachments] = useState<TaskAttachment[]>([]);
   const [commentAttachments, setCommentAttachments] = useState<Record<string, CommentAttachment[]>>({});
   const [accountableUser, setAccountableUser] = useState<string>("");
+  const [accountableUserProfile, setAccountableUserProfile] = useState<Profile | null>(null);
   const [responsibleUsers, setResponsibleUsers] = useState<ResponsibleUser[]>([]);
   const [accountableSearchQuery, setAccountableSearchQuery] = useState("");
   const [responsibleSearchQuery, setResponsibleSearchQuery] = useState("");
@@ -124,6 +125,14 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       fetchTaskAttachments();
       fetchResponsibleUsers();
       setAccountableUser(task.assigned_to || "");
+      
+      // Fetch accountable user profile
+      if (task.assigned_to) {
+        fetchAccountableUserProfile(task.assigned_to);
+      } else {
+        setAccountableUserProfile(null);
+      }
+      
       const currentStartDate = task.start_date ? format(new Date(task.start_date), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
       setStartDate(currentStartDate);
       setDueDate(task.due_date ? format(new Date(task.due_date), "yyyy-MM-dd") : "");
@@ -270,6 +279,18 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       setResponsibleUsers(usersWithProfiles);
     } else {
       setResponsibleUsers([]);
+    }
+  };
+
+  const fetchAccountableUserProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url")
+      .eq("id", userId)
+      .single();
+
+    if (data) {
+      setAccountableUserProfile(data);
     }
   };
 
@@ -476,11 +497,12 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     logActivity("added_comment");
   };
 
-  const handleAssignAccountable = (userId: string, displayName: string) => {
+  const handleAssignAccountable = async (userId: string, displayName: string) => {
     setAccountableUser(userId);
     setAccountableSearchQuery("");
     setShowAccountableSearch(false);
     setHasChanges(true);
+    await fetchAccountableUserProfile(userId);
   };
 
   const handleAssignResponsible = async (userId: string, displayName: string) => {
@@ -580,6 +602,28 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   };
 
   if (!task) return null;
+
+  const AccountableUserDisplay = ({ userId, onRemove }: { userId: string; onRemove: () => void }) => {
+    if (!accountableUserProfile) return null;
+    
+    return (
+      <div className="mt-2">
+        <div className="flex items-center gap-1 px-2 py-1 bg-accent rounded-md text-sm w-fit">
+          <Avatar className="w-4 h-4">
+            <AvatarImage src={accountableUserProfile.avatar_url || ""} />
+            <AvatarFallback>{accountableUserProfile.display_name?.charAt(0) || "U"}</AvatarFallback>
+          </Avatar>
+          <span>{accountableUserProfile.display_name || "Unknown"}</span>
+          <button
+            onClick={onRemove}
+            className="ml-1 hover:text-destructive"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -754,9 +798,10 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                       )}
                     </div>
                     {accountableUser && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>Assigned</span>
-                      </div>
+                      <AccountableUserDisplay userId={accountableUser} onRemove={() => {
+                        setAccountableUser("");
+                        setHasChanges(true);
+                      }} />
                     )}
                   </div>
                   <div>
@@ -855,22 +900,6 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                             ))}
                           </div>
                         )}
-                        
-                        {/* Add attachment to comment */}
-                        <label htmlFor={`comment-file-${comment.id}`} className="mt-2 inline-block">
-                          <Button variant="ghost" size="sm" disabled={uploadingFile} asChild>
-                            <span className="cursor-pointer text-xs">
-                              <Paperclip className="w-3 h-3 mr-1" />
-                              Attach file
-                            </span>
-                          </Button>
-                        </label>
-                        <input
-                          id={`comment-file-${comment.id}`}
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(e, comment.id)}
-                        />
                       </div>
                     </div>
                   </div>
