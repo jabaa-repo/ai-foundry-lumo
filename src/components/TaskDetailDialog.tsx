@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Send, Paperclip, Download, Trash2, X, Check } from "lucide-react";
@@ -121,6 +122,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [pendingCommentFile, setPendingCommentFile] = useState<File | null>(null);
   const [showUnmarkDialog, setShowUnmarkDialog] = useState(false);
   const [pendingActivityId, setPendingActivityId] = useState<string | null>(null);
+  const [projectNumber, setProjectNumber] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -130,6 +132,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       fetchActivityLog();
       fetchTaskAttachments();
       fetchResponsibleUsers();
+      fetchProjectInfo();
       setAccountableUser(task.assigned_to || "");
       
       // Fetch accountable user profile
@@ -243,6 +246,20 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
 
     if (!error && data) {
       setTaskAttachments(data);
+    }
+  };
+
+  const fetchProjectInfo = async () => {
+    if (!task?.project_id) return;
+
+    const { data, error } = await supabase
+      .from("projects")
+      .select("project_number")
+      .eq("id", task.project_id)
+      .single();
+
+    if (!error && data) {
+      setProjectNumber(data.project_number || "");
     }
   };
 
@@ -769,7 +786,14 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-row items-center justify-between space-y-0 pb-4 pr-10">
-          <DialogTitle className="text-2xl">{task.title}</DialogTitle>
+          <div className="flex flex-col gap-2">
+            <DialogTitle className="text-2xl">{task.title}</DialogTitle>
+            {projectNumber && (
+              <Badge variant="outline" className="font-mono text-xs w-fit">
+                {projectNumber}
+              </Badge>
+            )}
+          </div>
           <Button 
             onClick={handleDone} 
             disabled={!hasChanges}

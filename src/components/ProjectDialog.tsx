@@ -212,14 +212,16 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto bg-card border-border">
         <DialogHeader>
           <div className="space-y-3">
-            <DialogTitle className="text-xl text-foreground">
-              {project.title}
-            </DialogTitle>
-            {project.project_number && (
-              <Badge variant="outline" className="w-fit">
-                {project.project_number}
-              </Badge>
-            )}
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl text-foreground">
+                {project.title}
+              </DialogTitle>
+              {project.project_number && (
+                <Badge variant="outline" className="font-mono text-sm">
+                  {project.project_number}
+                </Badge>
+              )}
+            </div>
             {project.backlog && project.status !== 'completed' && (
               <div className="flex items-center gap-2">
                 {getBacklogIcon(project.backlog)}

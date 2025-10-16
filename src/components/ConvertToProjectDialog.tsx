@@ -390,6 +390,7 @@ Return only a simple bullet list of activities, one per line starting with "- "`
           project_brief: projectBrief,
           desired_outcomes: desiredOutcomes,
           due_date: dueDate,
+          project_number: projectNumber,
           departments: idea.departments || [],
           owner_id: user.id,
           responsible_id: idea.responsible_id,
