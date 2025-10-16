@@ -187,8 +187,8 @@ export default function ProjectsLog() {
                   return (
                     <TableRow key={project.id} className="hover:bg-muted/50 cursor-pointer">
                       <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {project.project_number || 'N/A'}
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {project.project_number || project.id.slice(0, 8)}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">{project.title}</TableCell>
