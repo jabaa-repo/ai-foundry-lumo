@@ -37,7 +37,7 @@ export function MoveToNextBacklogButton({
     }
   };
 
-  if (!nextBacklog || currentBacklog === 'completed' || !canProgress) {
+  if (!nextBacklog || currentBacklog === 'completed' || currentBacklog === 'outcomes_adoption' || !canProgress) {
     return null;
   }
 
