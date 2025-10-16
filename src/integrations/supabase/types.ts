@@ -639,7 +639,7 @@ export type Database = {
         | "outcomes_backlog"
         | "archived"
       project_status: "recent" | "live" | "completed" | "archived"
-      task_status: "todo" | "in_progress" | "done" | "blocked"
+      task_status: "unassigned" | "in_progress" | "done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -776,7 +776,7 @@ export const Constants = {
         "archived",
       ],
       project_status: ["recent", "live", "completed", "archived"],
-      task_status: ["todo", "in_progress", "done", "blocked"],
+      task_status: ["unassigned", "in_progress", "done"],
     },
   },
 } as const

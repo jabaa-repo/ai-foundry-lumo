@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -118,6 +119,8 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const [hasChanges, setHasChanges] = useState(false);
   const [originalTask, setOriginalTask] = useState<Task | null>(null);
   const [pendingCommentFile, setPendingCommentFile] = useState<File | null>(null);
+  const [showUnmarkDialog, setShowUnmarkDialog] = useState(false);
+  const [pendingActivityId, setPendingActivityId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -342,13 +345,18 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
   const handleActivityToggle = async (activityId: string, completed: boolean) => {
     if (!task) return;
 
-    // If task is done and user is unchecking an activity, ask for confirmation
+    // If task is done and user is unchecking an activity, show confirmation dialog
     if (task.status === 'done' && !completed) {
-      const confirmed = window.confirm(
-        "Unmarking this checklist will change the task status back to 'In Progress'. Do you want to continue?"
-      );
-      if (!confirmed) return;
+      setPendingActivityId(activityId);
+      setShowUnmarkDialog(true);
+      return;
     }
+
+    await performActivityToggle(activityId, completed);
+  };
+
+  const performActivityToggle = async (activityId: string, completed: boolean) => {
+    if (!task) return;
 
     const { error } = await supabase
       .from("task_activities")
@@ -416,6 +424,14 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
 
     fetchActivities();
     logActivity(completed ? "completed_activity" : "uncompleted_activity", activities.find(a => a.id === activityId)?.title);
+  };
+
+  const handleConfirmUnmark = async () => {
+    if (pendingActivityId) {
+      await performActivityToggle(pendingActivityId, false);
+    }
+    setShowUnmarkDialog(false);
+    setPendingActivityId(null);
   };
 
   const handleAddActivity = async () => {
@@ -1089,6 +1105,28 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      <AlertDialog open={showUnmarkDialog} onOpenChange={setShowUnmarkDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Task Status?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Unmarking this checklist will change the task status back to 'In Progress'. Do you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setPendingActivityId(null);
+              setShowUnmarkDialog(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmUnmark}>
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

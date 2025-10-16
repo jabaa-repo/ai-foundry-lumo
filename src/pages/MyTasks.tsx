@@ -21,7 +21,7 @@ interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'todo' | 'in_progress' | 'blocked' | 'done' | 'archived';
+  status: 'unassigned' | 'in_progress' | 'done';
   due_date: string | null;
   start_date?: string | null;
   assigned_to: string | null;

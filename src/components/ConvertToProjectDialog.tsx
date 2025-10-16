@@ -428,7 +428,7 @@ Return only a simple bullet list of activities, one per line starting with "- "`
           idea_id: idea.id,
           project_id: project.id,
           owner_id: user.id,
-          status: 'todo' as const,
+          status: 'unassigned' as const,
           responsible_role: task.responsible_role_name || null,
           accountable_role: task.accountable_role_name || null
         }));
