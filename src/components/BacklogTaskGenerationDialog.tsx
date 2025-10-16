@@ -279,7 +279,7 @@ export default function BacklogTaskGenerationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" />
@@ -322,7 +322,10 @@ export default function BacklogTaskGenerationDialog({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => document.getElementById('backlog-file-input')?.click()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  document.getElementById('backlog-file-input')?.click();
+                }}
                 disabled={!!attachedFile}
               >
                 <Paperclip className="h-4 w-4 mr-2" />
@@ -342,7 +345,10 @@ export default function BacklogTaskGenerationDialog({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={removeFile}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile();
+                    }}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -355,7 +361,10 @@ export default function BacklogTaskGenerationDialog({
           <div className="space-y-3">
             <Button
               type="button"
-              onClick={handleGenerateTasks}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleGenerateTasks();
+              }}
               disabled={aiGenerating}
               className="w-full"
             >
@@ -396,7 +405,10 @@ export default function BacklogTaskGenerationDialog({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeGeneratedTask(taskIndex)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeGeneratedTask(taskIndex);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -417,7 +429,10 @@ export default function BacklogTaskGenerationDialog({
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => deleteTaskActivity(taskIndex, actIndex)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteTaskActivity(taskIndex, actIndex);
+                                }}
                               >
                                 <Trash2 className="h-3 w-3" />
                               </Button>
@@ -427,7 +442,10 @@ export default function BacklogTaskGenerationDialog({
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => addTaskActivity(taskIndex)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addTaskActivity(taskIndex);
+                            }}
                             className="w-full"
                           >
                             <Plus className="h-3 w-3 mr-1" />
@@ -472,7 +490,10 @@ export default function BacklogTaskGenerationDialog({
               <Button
                 type="button"
                 variant="outline"
-                onClick={addManualTask}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addManualTask();
+                }}
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -509,7 +530,10 @@ export default function BacklogTaskGenerationDialog({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeManualTask(task.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeManualTask(task.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -526,13 +550,19 @@ export default function BacklogTaskGenerationDialog({
           <Button
             type="button"
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenChange(false);
+            }}
             disabled={loading}
           >
             Cancel
           </Button>
           <Button
-            onClick={handleSubmit}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSubmit();
+            }}
             disabled={loading || (generatedTasks.length === 0 && manualTasks.length === 0)}
           >
             {loading ? (

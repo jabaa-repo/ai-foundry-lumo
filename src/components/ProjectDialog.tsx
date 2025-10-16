@@ -220,7 +220,7 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
                 {project.project_number}
               </Badge>
             )}
-            {project.backlog && (
+            {project.backlog && project.status !== 'completed' && (
               <div className="flex items-center gap-2">
                 {getBacklogIcon(project.backlog)}
                 <span className="text-sm font-medium">{getBacklogTitle(project.backlog)}</span>
