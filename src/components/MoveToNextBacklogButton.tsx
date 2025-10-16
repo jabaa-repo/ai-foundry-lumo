@@ -36,9 +36,10 @@ export function MoveToNextBacklogButton({
       onClick={handleProgress}
       disabled={!canProgress || isLoading}
       size="sm"
-      className={className}
+      variant="outline"
+      className={`h-8 text-xs ${className}`}
     >
-      <ArrowRight className="h-4 w-4 mr-2" />
+      <ArrowRight className="h-3 w-3 mr-1" />
       Move to {nextBacklog}
     </Button>
   );

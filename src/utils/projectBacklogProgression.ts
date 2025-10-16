@@ -11,11 +11,12 @@ export async function checkAndProgressProjectBacklog(projectId: string) {
 
     if (projectError || !project) return;
 
-    // Get all tasks for this project
+    // Get all tasks for this project in the current backlog
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
       .select("status")
-      .eq("project_id", projectId);
+      .eq("project_id", projectId)
+      .eq("backlog", project.backlog);
 
     if (tasksError || !tasks || tasks.length === 0) return;
 
@@ -54,7 +55,7 @@ export async function checkAndProgressProjectBacklog(projectId: string) {
           return 'completed';
         }
       } else {
-        // Move to next backlog
+        // Move to next backlog and generate new tasks
         const { error: updateError } = await supabase
           .from("projects")
           .update({ 
@@ -63,6 +64,33 @@ export async function checkAndProgressProjectBacklog(projectId: string) {
           .eq("id", projectId);
 
         if (!updateError) {
+          // Generate tasks for the new backlog
+          const { data: functionData, error: functionError } = await supabase.functions.invoke(
+            'generate-backlog-tasks',
+            {
+              body: {
+                projectId,
+                previousBacklog: project.backlog,
+                nextBacklog
+              }
+            }
+          );
+
+          if (!functionError && functionData?.tasks) {
+            // Insert generated tasks
+            const tasksToInsert = functionData.tasks.map((task: any) => ({
+              project_id: projectId,
+              title: task.title,
+              description: task.description,
+              accountable_role: task.accountable_role,
+              responsible_role: task.responsible_role,
+              backlog: nextBacklog,
+              status: 'in_progress' as const,
+            }));
+
+            await supabase.from("tasks").insert(tasksToInsert);
+          }
+
           return nextBacklog;
         }
       }

@@ -558,6 +558,7 @@ export type Database = {
         Row: {
           accountable_role: string | null
           assigned_to: string | null
+          backlog: Database["public"]["Enums"]["backlog_type"] | null
           created_at: string
           description: string | null
           due_date: string | null
@@ -574,6 +575,7 @@ export type Database = {
         Insert: {
           accountable_role?: string | null
           assigned_to?: string | null
+          backlog?: Database["public"]["Enums"]["backlog_type"] | null
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -590,6 +592,7 @@ export type Database = {
         Update: {
           accountable_role?: string | null
           assigned_to?: string | null
+          backlog?: Database["public"]["Enums"]["backlog_type"] | null
           created_at?: string
           description?: string | null
           due_date?: string | null

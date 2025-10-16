@@ -21,10 +21,17 @@ export function useProjectProgression(projectId: string, currentBacklog: string)
 
   const checkIfCanProgress = async () => {
     try {
+      // Only check if currentBacklog is valid
+      if (!currentBacklog || currentBacklog === 'completed') {
+        setCanProgress(false);
+        return;
+      }
+
       const { data: tasks, error } = await supabase
         .from("tasks")
         .select("status")
-        .eq("project_id", projectId);
+        .eq("project_id", projectId)
+        .eq("backlog", currentBacklog as 'business_innovation' | 'engineering' | 'outcomes_adoption');
 
       if (error || !tasks || tasks.length === 0) {
         setCanProgress(false);

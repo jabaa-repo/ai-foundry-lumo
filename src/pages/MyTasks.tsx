@@ -71,8 +71,6 @@ export default function MyTasks() {
       .select('*');
     
     if (projectId) {
-      query = query.eq('project_id', projectId);
-      
       // Fetch project title and backlog
       const { data: projectData } = await supabase
         .from('projects')
@@ -83,6 +81,11 @@ export default function MyTasks() {
       if (projectData) {
         setProjectTitle(projectData.title);
         setProjectBacklog(projectData.backlog || '');
+        
+        // Filter tasks by project and current backlog
+        query = query
+          .eq('project_id', projectId)
+          .eq('backlog', projectData.backlog);
       }
     }
 
