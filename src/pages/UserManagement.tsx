@@ -5,6 +5,7 @@ import { usePermissions } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,9 +34,12 @@ export default function UserManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
 
   const [newUser, setNewUser] = useState({
     email: '',
@@ -184,7 +188,9 @@ export default function UserManagement() {
     return null;
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    
     if (!permissions.isSystemAdmin) {
       toast({
         title: 'Access Denied',
@@ -194,19 +200,23 @@ export default function UserManagement() {
       return;
     }
 
+    setIsDeleting(true);
     try {
-      const { error } = await supabase
+      // Delete user role
+      const { error: roleError } = await supabase
         .from('user_roles')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', userToDelete.id);
 
-      if (error) throw error;
+      if (roleError) throw roleError;
 
       toast({
         title: 'Success',
         description: 'User role removed successfully.',
       });
 
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
       fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -215,7 +225,14 @@ export default function UserManagement() {
         description: 'Failed to delete user.',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const confirmDeleteUser = (user: UserProfile) => {
+    setUserToDelete(user);
+    setShowDeleteDialog(true);
   };
 
   const handleEditUser = (user: UserProfile) => {
@@ -420,7 +437,7 @@ export default function UserManagement() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => confirmDeleteUser(user)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -577,6 +594,35 @@ export default function UserManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove <strong>{userToDelete?.display_name}</strong>'s role and access to the system. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete User'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
