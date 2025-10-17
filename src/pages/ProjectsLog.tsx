@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Search, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ProjectTasksTableModal from "@/components/ProjectTasksTableModal";
+import ProjectDialog from "@/components/ProjectDialog";
+import { format } from "date-fns";
 
 interface Project {
   id: string;
@@ -26,6 +28,8 @@ interface Project {
   secondary_metrics: any;
   updated_at: string;
   last_activity_date?: string;
+  owner_id?: string;
+  due_date?: string;
 }
 
 interface BacklogStats {
@@ -55,6 +59,8 @@ export default function ProjectsLog() {
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [tasksModalOpen, setTasksModalOpen] = useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [profiles, setProfiles] = useState<Map<string, string>>(new Map());
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -115,6 +121,17 @@ export default function ProjectsLog() {
     }
 
     setProjects((projectsData || []) as any);
+
+    // Fetch all profiles for owner names
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, display_name');
+
+    const profilesMap = new Map<string, string>();
+    profilesData?.forEach(profile => {
+      profilesMap.set(profile.id, profile.display_name || 'Unknown');
+    });
+    setProfiles(profilesMap);
 
     // Fetch task statistics for all projects
     const statsMap = new Map<string, ProjectStats>();
@@ -221,6 +238,8 @@ export default function ProjectsLog() {
                   <TableRow>
                     <TableHead className="font-bold">Project ID</TableHead>
                     <TableHead className="font-bold">Title</TableHead>
+                    <TableHead className="font-bold">Owner</TableHead>
+                    <TableHead className="font-bold">Due Date</TableHead>
                     <TableHead className="font-bold text-center">Total Tasks</TableHead>
                     <TableHead className="font-bold text-center">Completed</TableHead>
                     <TableHead className="font-bold text-center">Unassigned</TableHead>
@@ -243,6 +262,12 @@ export default function ProjectsLog() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">{project.title}</TableCell>
+                        <TableCell className="text-sm">
+                          {project.owner_id ? profiles.get(project.owner_id) || 'Unknown' : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {project.due_date ? format(new Date(project.due_date), 'MMM dd, yyyy') : 'N/A'}
+                        </TableCell>
                         <TableCell className="text-center">{stats?.totalTasks || 0}</TableCell>
                         <TableCell className="text-center">
                           <span className="text-green-600 dark:text-green-400 font-semibold">
@@ -301,7 +326,7 @@ export default function ProjectsLog() {
                       <Button 
                         variant="outline" 
                         className="flex-1"
-                        onClick={() => navigate(`/dashboard?project=${selectedProject.id}`)}
+                        onClick={() => setProjectDialogOpen(true)}
                       >
                         Open Project
                       </Button>
@@ -470,12 +495,23 @@ export default function ProjectsLog() {
       </main>
 
       {selectedProject && (
-        <ProjectTasksTableModal
-          open={tasksModalOpen}
-          onOpenChange={setTasksModalOpen}
-          projectId={selectedProject.id}
-          projectTitle={selectedProject.title}
-        />
+        <>
+          <ProjectTasksTableModal
+            open={tasksModalOpen}
+            onOpenChange={setTasksModalOpen}
+            projectId={selectedProject.id}
+            projectTitle={selectedProject.title}
+          />
+          <ProjectDialog
+            project={selectedProject}
+            open={projectDialogOpen}
+            onOpenChange={setProjectDialogOpen}
+            onProjectDeleted={() => {
+              setSelectedProject(null);
+              fetchProjectsAndStats();
+            }}
+          />
+        </>
       )}
     </div>
   );

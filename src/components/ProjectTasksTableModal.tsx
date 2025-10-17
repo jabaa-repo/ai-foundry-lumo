@@ -13,7 +13,10 @@ interface Task {
   status: 'todo' | 'in_progress' | 'done';
   assigned_to: string | null;
   responsible_role: string | null;
+  responsible_id: string | null;
   accountable_role: string | null;
+  accountable_id: string | null;
+  owner_id: string | null;
   due_date: string | null;
 }
 
@@ -55,18 +58,20 @@ export default function ProjectTasksTableModal({
       .order('created_at', { ascending: false });
 
     if (tasksData) {
-      setTasks(tasksData as Task[]);
+      setTasks(tasksData as any);
 
-      // Fetch profiles for assigned users
-      const userIds = tasksData
-        .map(t => t.assigned_to)
-        .filter(Boolean) as string[];
+      // Fetch profiles for all user IDs (assigned, owner)
+      const userIds = new Set<string>();
+      tasksData.forEach((task: any) => {
+        if (task.assigned_to) userIds.add(task.assigned_to);
+        if (task.owner_id) userIds.add(task.owner_id);
+      });
       
-      if (userIds.length > 0) {
+      if (userIds.size > 0) {
         const { data: profilesData } = await supabase
           .from('profiles')
           .select('id, display_name')
-          .in('id', userIds);
+          .in('id', Array.from(userIds));
 
         if (profilesData) {
           const profileMap = new Map<string, string>();
@@ -174,7 +179,9 @@ export default function ProjectTasksTableModal({
                         {task.accountable_role || '-'}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {task.assigned_to ? profiles.get(task.assigned_to) : task.responsible_role || '-'}
+                        {task.assigned_to 
+                          ? profiles.get(task.assigned_to) || 'Unknown'
+                          : task.responsible_role || '-'}
                       </TableCell>
                       <TableCell className="text-sm">
                         {task.due_date ? format(new Date(task.due_date), 'MMM dd, yyyy') : '-'}
