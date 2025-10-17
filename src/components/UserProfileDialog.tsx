@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,13 +32,20 @@ export function UserProfileDialog({
   profile,
   onProfileUpdate,
 }: UserProfileDialogProps) {
-  const [displayName, setDisplayName] = useState(profile?.display_name || "");
+  const [displayName, setDisplayName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPasswordFields, setShowPasswordFields] = useState(false);
   const { toast } = useToast();
+
+  // Sync displayName with profile data
+  useEffect(() => {
+    if (profile?.display_name) {
+      setDisplayName(profile.display_name);
+    }
+  }, [profile]);
 
   const handleUpdateProfile = async () => {
     if (!user) return;
