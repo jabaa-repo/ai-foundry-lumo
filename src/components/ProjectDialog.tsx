@@ -307,7 +307,7 @@ export default function ProjectDialog({ project, open, onOpenChange, onProjectDe
           {/* Actions */}
           <div className="flex justify-between gap-2 pt-4 border-t border-border">
             <div className="flex gap-2">
-              {isOwner && (
+              {isOwner && project?.backlog !== 'outcomes_delivery' && (
                 <>
                   <Button 
                     variant="outline" 
