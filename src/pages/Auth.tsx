@@ -10,10 +10,8 @@ import { Loader2 } from "lucide-react";
 import huboLogo from "@/assets/hubo-logo.png";
 
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -23,59 +21,54 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Check if user has a role assigned
-        if (data.user) {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', data.user.id)
-            .maybeSingle();
+      // Check if user has a role assigned
+      if (data.user) {
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
 
-          if (!roleData) {
-            await supabase.auth.signOut();
-            toast({
-              variant: "destructive",
-              title: "Access Denied",
-              description: "Your account does not have a role assigned. Please contact an administrator.",
-            });
-            setLoading(false);
-            return;
-          }
+        if (roleError) {
+          console.error('Error fetching user role:', roleError);
+          await supabase.auth.signOut();
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to verify user permissions. Please try again.",
+          });
+          setLoading(false);
+          return;
         }
 
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
-        navigate("/");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              display_name: displayName,
-            },
-          },
-        });
+        if (!roleData) {
+          await supabase.auth.signOut();
+          toast({
+            variant: "destructive",
+            title: "Access Denied",
+            description: "Your account does not have a role assigned. Please contact an administrator.",
+          });
+          setLoading(false);
+          return;
+        }
 
-        if (error) throw error;
-
-        toast({
-          title: "Account created!",
-          description: "Please contact an administrator to assign a role to your account before you can access the system.",
-        });
+        console.log('User role verified:', roleData.role);
       }
+
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully logged in.",
+      });
+      navigate("/");
     } catch (error: any) {
+      console.error('Authentication error:', error);
       toast({
         variant: "destructive",
         title: "Authentication failed",
@@ -98,27 +91,11 @@ export default function Auth() {
             </CardDescription>
           </div>
           <CardDescription>
-            {isLogin
-              ? "Sign in to your account to continue"
-              : "Create an account to get started"}
+            Sign in to your account to continue
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="displayName">Display Name</Label>
-                <Input
-                  id="displayName"
-                  type="text"
-                  placeholder="Your name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  required
-                  className="border-border focus:ring-primary"
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -154,24 +131,11 @@ export default function Auth() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Please wait...
                 </>
-              ) : isLogin ? (
-                "Sign In"
               ) : (
-                "Create Account"
+                "Sign In"
               )}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:text-primary-hover font-medium transition-colors"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
