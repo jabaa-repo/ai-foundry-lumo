@@ -115,7 +115,11 @@ export default function ArchivedIdeasPage() {
     
     setLoading(true);
     try {
-      // Insert back into ideas table
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Insert back into ideas table with current user
       const { error: insertError } = await supabase
         .from('ideas')
         .insert({
@@ -125,7 +129,8 @@ export default function ArchivedIdeasPage() {
           possible_outcome: selectedIdea.possible_outcome,
           departments: selectedIdea.departments,
           category: selectedIdea.category,
-          user_id: selectedIdea.user_id,
+          user_id: user.id,
+          owner_id: user.id,
           status: 'inbox',
         });
 
