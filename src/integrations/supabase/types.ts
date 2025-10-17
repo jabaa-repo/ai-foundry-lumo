@@ -556,6 +556,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          accountable_id: string | null
           accountable_role: string | null
           assigned_to: string | null
           backlog: Database["public"]["Enums"]["backlog_type"] | null
@@ -573,6 +574,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accountable_id?: string | null
           accountable_role?: string | null
           assigned_to?: string | null
           backlog?: Database["public"]["Enums"]["backlog_type"] | null
@@ -590,6 +592,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accountable_id?: string | null
           accountable_role?: string | null
           assigned_to?: string | null
           backlog?: Database["public"]["Enums"]["backlog_type"] | null
