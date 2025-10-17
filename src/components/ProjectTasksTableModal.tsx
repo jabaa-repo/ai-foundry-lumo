@@ -18,6 +18,7 @@ interface Task {
   accountable_id: string | null;
   owner_id: string | null;
   due_date: string | null;
+  responsible_users?: string[];
 }
 
 interface Profile {
@@ -58,14 +59,45 @@ export default function ProjectTasksTableModal({
       .order('created_at', { ascending: false });
 
     if (tasksData) {
-      setTasks(tasksData as any);
+      // Fetch responsible users from task_responsible_users table
+      const taskIds = tasksData.map((task: any) => task.id);
+      const { data: responsibleUsersData } = await supabase
+        .from('task_responsible_users')
+        .select('task_id, user_id')
+        .in('task_id', taskIds);
 
-      // Fetch profiles for all user IDs (assigned, owner)
+      // Map responsible users to tasks
+      const responsibleUsersMap = new Map<string, string[]>();
+      if (responsibleUsersData) {
+        responsibleUsersData.forEach((ru: any) => {
+          const existing = responsibleUsersMap.get(ru.task_id) || [];
+          existing.push(ru.user_id);
+          responsibleUsersMap.set(ru.task_id, existing);
+        });
+      }
+
+      // Add responsible_users to tasks
+      const tasksWithResponsible = tasksData.map((task: any) => ({
+        ...task,
+        responsible_users: responsibleUsersMap.get(task.id) || []
+      }));
+
+      setTasks(tasksWithResponsible as any);
+
+      // Fetch profiles for all user IDs (accountable_id, responsible_id, responsible_users, owner_id)
       const userIds = new Set<string>();
       tasksData.forEach((task: any) => {
-        if (task.assigned_to) userIds.add(task.assigned_to);
+        if (task.accountable_id) userIds.add(task.accountable_id);
+        if (task.responsible_id) userIds.add(task.responsible_id);
         if (task.owner_id) userIds.add(task.owner_id);
       });
+      
+      // Add responsible users
+      if (responsibleUsersData) {
+        responsibleUsersData.forEach((ru: any) => {
+          if (ru.user_id) userIds.add(ru.user_id);
+        });
+      }
       
       if (userIds.size > 0) {
         const { data: profilesData } = await supabase
@@ -176,12 +208,16 @@ export default function ProjectTasksTableModal({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {task.accountable_role || '-'}
+                        {task.accountable_id 
+                          ? profiles.get(task.accountable_id) || 'Unknown'
+                          : task.accountable_role || '-'}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {task.assigned_to 
-                          ? profiles.get(task.assigned_to) || 'Unknown'
-                          : task.responsible_role || '-'}
+                        {task.responsible_users && task.responsible_users.length > 0
+                          ? task.responsible_users.map(userId => profiles.get(userId) || 'Unknown').join(', ')
+                          : task.responsible_id
+                            ? profiles.get(task.responsible_id) || 'Unknown'
+                            : task.responsible_role || '-'}
                       </TableCell>
                       <TableCell className="text-sm">
                         {task.due_date ? format(new Date(task.due_date), 'MMM dd, yyyy') : '-'}
