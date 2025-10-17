@@ -5,12 +5,22 @@ import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Calendar, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Calendar, User as UserIcon, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import AIChatZone from "@/components/AIChatZone";
 import { TaskDetailDialog } from "@/components/TaskDetailDialog";
 import { MoveToNextBacklogButton } from "@/components/MoveToNextBacklogButton";
 import { MoveToCompletedButton } from "@/components/MoveToCompletedButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ResponsibleUser {
   user_id: string;
@@ -49,6 +59,8 @@ export default function MyTasks() {
   const [projectBacklog, setProjectBacklog] = useState<string>("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -179,16 +191,61 @@ export default function MyTasks() {
     fetchMyTasks();
   };
 
+  const handleDeleteClick = (task: Task, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setTaskToDelete(task);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Task deleted permanently",
+      });
+
+      fetchMyTasks();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    } finally {
+      setShowDeleteDialog(false);
+      setTaskToDelete(null);
+    }
+  };
+
   const renderTaskCard = (task: Task) => (
     <Card 
       key={task.id} 
-      className="cursor-pointer hover:shadow-hover transition-all border-border"
+      className="cursor-pointer hover:shadow-hover transition-all border-border group"
       onClick={() => handleTaskClick(task)}
     >
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium leading-tight">
-          {task.title}
-        </CardTitle>
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-medium leading-tight flex-1">
+            {task.title}
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => handleDeleteClick(task, e)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {task.description && (
@@ -357,6 +414,23 @@ export default function MyTasks() {
         onOpenChange={setIsDialogOpen}
         onTaskUpdate={handleTaskUpdate}
       />
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete "{taskToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AIChatZone />
     </div>

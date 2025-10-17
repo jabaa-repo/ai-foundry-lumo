@@ -10,6 +10,7 @@ import AIChatZone from "@/components/AIChatZone";
 import IdeaDialog from "@/components/IdeaDialog";
 import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
+import VoiceIdeaAssistant from "@/components/VoiceIdeaAssistant";
 import { useToast } from "@/hooks/use-toast";
 import huboLogo from "@/assets/hubo-logo.png";
 
@@ -191,23 +192,31 @@ export default function Dashboard() {
 
       {/* Main Workspace */}
       <main className="flex-1 container mx-auto p-4 space-y-4 pb-64">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground">Project Board</h2>
-          <Button
-            onClick={handleAddIdea}
-            className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add to Inbox
-          </Button>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-foreground">Project Board</h2>
+              <Button
+                onClick={handleAddIdea}
+                className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add to Inbox
+              </Button>
+            </div>
+            
+            <KanbanBoard 
+              ideas={ideas} 
+              projects={projects} 
+              onIdeaClick={handleIdeaClick}
+              onProjectClick={handleProjectClick}
+            />
+          </div>
+          
+          <div className="lg:col-span-1">
+            <VoiceIdeaAssistant onIdeaSaved={fetchIdeas} />
+          </div>
         </div>
-        
-        <KanbanBoard 
-          ideas={ideas} 
-          projects={projects} 
-          onIdeaClick={handleIdeaClick}
-          onProjectClick={handleProjectClick}
-        />
       </main>
 
       {/* AI Chat Zone */}
