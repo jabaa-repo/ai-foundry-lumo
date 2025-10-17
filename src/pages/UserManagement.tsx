@@ -40,6 +40,10 @@ export default function UserManagement() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [showTempPasswordDialog, setShowTempPasswordDialog] = useState(false);
+  const [tempPassword, setTempPassword] = useState('');
+  const [tempPasswordCopied, setTempPasswordCopied] = useState(false);
+  const [createdUserEmail, setCreatedUserEmail] = useState('');
 
   const [newUser, setNewUser] = useState({
     email: '',
@@ -151,10 +155,11 @@ export default function UserManagement() {
         throw response.error;
       }
 
-      toast({
-        title: 'Success',
-        description: `User created and invitation email sent to ${newUser.email}`,
-      });
+      const responseData = response.data;
+
+      setCreatedUserEmail(newUser.email);
+      setTempPassword(responseData.temporary_password);
+      setShowTempPasswordDialog(true);
 
       setShowCreateDialog(false);
       setNewUser({
@@ -595,6 +600,61 @@ export default function UserManagement() {
               ) : (
                 'Update User'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Temporary Password Dialog */}
+      <Dialog open={showTempPasswordDialog} onOpenChange={(open) => {
+        setShowTempPasswordDialog(open);
+        if (!open) {
+          setTempPasswordCopied(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>User Created Successfully</DialogTitle>
+            <DialogDescription>
+              Share this temporary password with {createdUserEmail}. They will be required to change it on first login.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input value={createdUserEmail} readOnly className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label>Temporary Password</Label>
+              <div className="flex gap-2">
+                <Input value={tempPassword} readOnly className="bg-muted font-mono" />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(tempPassword);
+                    setTempPasswordCopied(true);
+                    toast({
+                      title: "Copied!",
+                      description: "Password copied to clipboard",
+                    });
+                  }}
+                >
+                  {tempPasswordCopied ? (
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Make sure to save this password securely. It won't be shown again.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowTempPasswordDialog(false)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

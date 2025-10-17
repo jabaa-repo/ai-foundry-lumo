@@ -290,6 +290,7 @@ export type Database = {
           display_name: string | null
           email: string | null
           id: string
+          needs_password_change: boolean | null
           position: Database["public"]["Enums"]["team_position"] | null
           team: Database["public"]["Enums"]["team_type"] | null
           updated_at: string
@@ -300,6 +301,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id: string
+          needs_password_change?: boolean | null
           position?: Database["public"]["Enums"]["team_position"] | null
           team?: Database["public"]["Enums"]["team_type"] | null
           updated_at?: string
@@ -310,6 +312,7 @@ export type Database = {
           display_name?: string | null
           email?: string | null
           id?: string
+          needs_password_change?: boolean | null
           position?: Database["public"]["Enums"]["team_position"] | null
           team?: Database["public"]["Enums"]["team_type"] | null
           updated_at?: string

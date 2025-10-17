@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import huboLogo from "@/assets/hubo-logo.png";
+import { PasswordChangeDialog } from "@/components/PasswordChangeDialog";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/");
+      }
+    });
+  }, [navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +71,19 @@ export default function Auth() {
         }
 
         console.log('User role verified:', roleData.role);
+
+        // Check if user needs to change password
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('needs_password_change')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileData?.needs_password_change) {
+          setShowPasswordChange(true);
+          setLoading(false);
+          return;
+        }
       }
 
       toast({
@@ -79,65 +103,77 @@ export default function Auth() {
     }
   };
 
+  const handlePasswordChanged = () => {
+    setShowPasswordChange(false);
+    toast({
+      title: "Password changed successfully",
+      description: "You can now access your account.",
+    });
+    navigate("/");
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary-light/20 to-accent-light flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-card">
-        <CardHeader className="space-y-3 flex flex-col items-center">
-          <img src={huboLogo} alt="Hubo" className="h-16 w-auto" />
-          <div className="text-center">
-            <CardTitle className="text-3xl font-bold text-primary">hubo</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              From source to success
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-background via-primary-light/20 to-accent-light flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-card">
+          <CardHeader className="space-y-3 flex flex-col items-center">
+            <img src={huboLogo} alt="Hubo" className="h-16 w-auto" />
+            <div className="text-center">
+              <CardTitle className="text-3xl font-bold text-primary">hubo</CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                From source to success
+              </CardDescription>
+            </div>
+            <CardDescription>
+              Sign in to your account to continue
             </CardDescription>
-          </div>
-          <CardDescription>
-            Sign in to your account to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="border-border focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="border-border focus:ring-primary"
-              />
-            </div>
-            <Button
-              type="submit"
-              className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Please wait...
-                </>
-              ) : (
-                "Sign In"
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="border-border focus:ring-primary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="border-border focus:ring-primary"
+                />
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Please wait...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+      <PasswordChangeDialog open={showPasswordChange} onPasswordChanged={handlePasswordChanged} />
+    </>
   );
 }
