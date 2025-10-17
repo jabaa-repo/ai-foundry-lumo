@@ -37,7 +37,7 @@ serve(async (req) => {
   }
 
   try {
-    const { projectData } = await req.json();
+    const { projectData, additionalContext } = await req.json();
     
     if (!projectData) {
       throw new Error('Project data is required');
@@ -80,7 +80,7 @@ For each task, suggest:
 
 Consider the project brief and desired outcomes:
 ${projectData.project_brief || 'N/A'}
-${projectData.desired_outcomes || 'N/A'}`;
+${projectData.desired_outcomes || 'N/A'}${additionalContext || ''}`;
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
     if (!lovableApiKey) {

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Sparkles, X, Trash2, Archive, Mic, MicOff } from "lucide-react";
+import { Loader2, Rocket, Sparkles, X, Trash2, Archive, Mic, MicOff, FileText, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
 import { useRef } from "react";
@@ -60,6 +60,8 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
@@ -73,6 +75,7 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setTitle("");
       setDescription("");
       setDepartments([]);
+      setAttachedFile(null);
     }
     // Reset recording state when dialog closes
     if (!open && isRecording) {
@@ -340,6 +343,92 @@ DESCRIPTION: [description here]`
     }
   };
 
+  const handleFileAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: "destructive",
+        title: "File too large",
+        description: "Please attach a file smaller than 5MB",
+      });
+      return;
+    }
+
+    setAttachedFile(file);
+  };
+
+  const removeFile = () => {
+    setAttachedFile(null);
+    const fileInput = document.getElementById('idea-file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleGenerateFromFile = async () => {
+    if (!attachedFile) {
+      toast({
+        variant: "destructive",
+        title: "No File",
+        description: "Please attach a file first",
+      });
+      return;
+    }
+
+    setIsProcessingFile(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const fileContent = event.target?.result as string;
+
+        // Generate idea using AI from file content
+        const { data, error } = await supabase.functions.invoke('lumo-chat', {
+          body: { 
+            message: `Based on the following document content, extract or create a well-structured idea:
+
+Document Content:
+${fileContent}
+
+Please provide:
+1. A clear, concise title (max 10 words) that captures the main concept
+2. A detailed description (2-3 sentences that explain the idea, its purpose, and potential impact)
+
+Format your response as:
+TITLE: [title here]
+DESCRIPTION: [description here]`
+          }
+        });
+
+        if (error) throw error;
+
+        const response = data.response;
+        
+        // Parse the AI response
+        const titleMatch = response.match(/TITLE:\s*(.+?)(?=\n|DESCRIPTION:|$)/s);
+        const descMatch = response.match(/DESCRIPTION:\s*(.+?)$/s);
+        
+        if (titleMatch && descMatch) {
+          setTitle(titleMatch[1].trim());
+          setDescription(descMatch[1].trim());
+          
+          toast({
+            title: "Idea Generated",
+            description: "Idea created from document. You can edit it before saving.",
+          });
+        }
+      };
+      reader.readAsText(attachedFile);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to process file",
+      });
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
 
   const handleDelete = async () => {
     if (!idea) return;
@@ -557,6 +646,72 @@ DESCRIPTION: [description here]`
               className="border-border resize-none"
             />
           </div>
+
+          {/* File Upload Section */}
+          {!idea && (
+            <div className="space-y-2">
+              <Label>Generate Idea from Document</Label>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById('idea-file-input')?.click()}
+                    disabled={isProcessingFile}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {attachedFile ? "Change File" : "Attach File"}
+                  </Button>
+                  <input
+                    id="idea-file-input"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileAttach}
+                    accept=".txt,.doc,.docx,.pdf,.md"
+                  />
+                  {attachedFile && (
+                    <>
+                      <div className="flex items-center gap-2 text-sm flex-1">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="truncate">{attachedFile.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={removeFile}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+                {attachedFile && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={handleGenerateFromFile}
+                    disabled={isProcessingFile}
+                    className="w-full"
+                  >
+                    {isProcessingFile ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating from document...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate Idea from File
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

@@ -285,8 +285,13 @@ Description: [rewritten description]
         workflow_step: 1
       };
 
+      const fileContext = fileContent ? `\n\nAdditional Context from Attached File:\n${fileContent}` : '';
+
       const { data, error } = await supabase.functions.invoke('generate-tasks', {
-        body: { projectData }
+        body: { 
+          projectData,
+          additionalContext: fileContext
+        }
       });
 
       if (error) throw error;
@@ -302,6 +307,7 @@ Description: [rewritten description]
                   
 Task: ${task.title}
 Description: ${task.description}
+${fileContext}
 
 Return only a simple bullet list of activities, one per line starting with "- "`
                 }
