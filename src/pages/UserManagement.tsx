@@ -115,11 +115,31 @@ export default function UserManagement() {
 
     setIsCreating(true);
     try {
-      // In a real application, you would use Supabase Admin API to create users
-      // For now, we'll show a message to send an invitation
+      // Determine team from position
+      const team = newUser.position ? getTeamTypeFromPosition(newUser.position as TeamPosition) : null;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('create-user-invitation', {
+        body: {
+          email: newUser.email,
+          display_name: newUser.display_name,
+          role: newUser.role,
+          position: newUser.position || null,
+          team: team,
+        },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
       toast({
-        title: 'Invitation Ready',
-        description: `Please send an invitation email to ${newUser.email} to complete the registration.`,
+        title: 'Success',
+        description: `User created and invitation email sent to ${newUser.email}`,
       });
 
       setShowCreateDialog(false);
@@ -129,16 +149,29 @@ export default function UserManagement() {
         role: 'team_member',
         position: '',
       });
-    } catch (error) {
+      
+      fetchUsers();
+    } catch (error: any) {
       console.error('Error creating user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create user.',
+        description: error.message || 'Failed to create user.',
         variant: 'destructive',
       });
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const getTeamTypeFromPosition = (position: TeamPosition): TeamType | null => {
+    if (['business_analyst', 'ai_process_reengineer', 'ai_innovation_executive'].includes(position)) {
+      return 'business_innovation';
+    } else if (['ai_system_architect', 'ai_system_engineer', 'ai_data_engineer'].includes(position)) {
+      return 'engineering';
+    } else if (['outcomes_analytics_executive', 'education_implementation_executive', 'change_leadership_architect'].includes(position)) {
+      return 'adoption_outcomes';
+    }
+    return null;
   };
 
   const handleDeleteUser = async (userId: string) => {
