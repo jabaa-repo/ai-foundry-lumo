@@ -114,11 +114,11 @@ export default function MyTasks() {
       (data || []).map(async (task) => {
         // Fetch accountable profile
         let accountable_profile = null;
-        if (task.assigned_to) {
+        if (task.accountable_id) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('display_name')
-            .eq('id', task.assigned_to)
+            .eq('id', task.accountable_id)
             .single();
           accountable_profile = profileData;
         }

@@ -906,6 +906,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                     <Input
                       type="date"
                       value={startDate}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => {
                         setStartDate(e.target.value);
                         setHasChanges(true);
@@ -921,6 +922,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
                     <Input
                       type="date"
                       value={dueDate}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => {
                         setDueDate(e.target.value);
                         setHasChanges(true);
