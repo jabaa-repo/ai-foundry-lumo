@@ -17,7 +17,8 @@ import {
   ClipboardList, 
   FlaskConical, 
   Shield,
-  History
+  History,
+  Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -81,6 +82,15 @@ export default function MainMenu() {
       description: "View complete system audit trail",
       onClick: () => {
         navigate("/audit-log");
+        setOpen(false);
+      }
+    },
+    {
+      icon: Users,
+      title: "User Management",
+      description: "Manage users, roles, and permissions",
+      onClick: () => {
+        navigate("/users");
         setOpen(false);
       }
     },

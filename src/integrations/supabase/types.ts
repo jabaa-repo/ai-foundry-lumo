@@ -289,6 +289,8 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          position: Database["public"]["Enums"]["team_position"] | null
+          team: Database["public"]["Enums"]["team_type"] | null
           updated_at: string
         }
         Insert: {
@@ -296,6 +298,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          position?: Database["public"]["Enums"]["team_position"] | null
+          team?: Database["public"]["Enums"]["team_type"] | null
           updated_at?: string
         }
         Update: {
@@ -303,6 +307,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          position?: Database["public"]["Enums"]["team_position"] | null
+          team?: Database["public"]["Enums"]["team_type"] | null
           updated_at?: string
         }
         Relationships: []
@@ -626,6 +632,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -639,8 +666,27 @@ export type Database = {
         Args: { ai_tag: string }
         Returns: string
       }
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "system_admin" | "project_owner" | "team_member" | "management"
       backlog_type: "business_innovation" | "engineering" | "outcomes_adoption"
       idea_status:
         | "inbox"
@@ -650,6 +696,17 @@ export type Database = {
         | "archived"
       project_status: "recent" | "live" | "completed" | "archived"
       task_status: "unassigned" | "in_progress" | "done"
+      team_position:
+        | "business_analyst"
+        | "ai_process_reengineer"
+        | "ai_innovation_executive"
+        | "ai_system_architect"
+        | "ai_system_engineer"
+        | "ai_data_engineer"
+        | "outcomes_analytics_executive"
+        | "education_implementation_executive"
+        | "change_leadership_architect"
+      team_type: "business_innovation" | "engineering" | "adoption_outcomes"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -777,6 +834,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["system_admin", "project_owner", "team_member", "management"],
       backlog_type: ["business_innovation", "engineering", "outcomes_adoption"],
       idea_status: [
         "inbox",
@@ -787,6 +845,18 @@ export const Constants = {
       ],
       project_status: ["recent", "live", "completed", "archived"],
       task_status: ["unassigned", "in_progress", "done"],
+      team_position: [
+        "business_analyst",
+        "ai_process_reengineer",
+        "ai_innovation_executive",
+        "ai_system_architect",
+        "ai_system_engineer",
+        "ai_data_engineer",
+        "outcomes_analytics_executive",
+        "education_implementation_executive",
+        "change_leadership_architect",
+      ],
+      team_type: ["business_innovation", "engineering", "adoption_outcomes"],
     },
   },
 } as const

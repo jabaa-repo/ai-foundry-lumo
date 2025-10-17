@@ -24,12 +24,32 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+
+        // Check if user has a role assigned
+        if (data.user) {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
+          if (!roleData) {
+            await supabase.auth.signOut();
+            toast({
+              variant: "destructive",
+              title: "Access Denied",
+              description: "Your account does not have a role assigned. Please contact an administrator.",
+            });
+            setLoading(false);
+            return;
+          }
+        }
 
         toast({
           title: "Welcome back!",
@@ -41,6 +61,7 @@ export default function Auth() {
           email,
           password,
           options: {
+            emailRedirectTo: `${window.location.origin}/`,
             data: {
               display_name: displayName,
             },
@@ -51,9 +72,8 @@ export default function Auth() {
 
         toast({
           title: "Account created!",
-          description: "Welcome to LUMO. You're now logged in.",
+          description: "Please contact an administrator to assign a role to your account before you can access the system.",
         });
-        navigate("/");
       }
     } catch (error: any) {
       toast({

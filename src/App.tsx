@@ -11,6 +11,7 @@ import Experiments from "./pages/Experiments";
 import Archive from "./pages/Archive";
 import ArchivedIdeasPage from "./pages/ArchivedIdeasPage";
 import AuditLog from "./pages/AuditLog";
+import UserManagement from "./pages/UserManagement";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/archive" element={<Archive />} />
           <Route path="/archived-ideas" element={<ArchivedIdeasPage />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/users" element={<UserManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

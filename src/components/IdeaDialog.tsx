@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/useUserRole";
 import { Loader2, Rocket, Sparkles, X, Trash2, Archive, Mic, MicOff, FileText, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
@@ -65,6 +66,7 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
+  const permissions = usePermissions();
 
   useEffect(() => {
     if (idea) {
@@ -807,7 +809,7 @@ DESCRIPTION: [description here]`
 
         <div className="flex justify-between items-center pt-4 border-t border-border gap-2 flex-shrink-0">
             <div className="flex gap-2">
-              {idea && !(idea as any).is_project && (
+              {idea && !(idea as any).is_project && permissions.canDeleteIdea && (
                 <>
                   <Button
                     type="button"

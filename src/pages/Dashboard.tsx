@@ -11,6 +11,7 @@ import IdeaDialog from "@/components/IdeaDialog";
 import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/useUserRole";
 import huboLogo from "@/assets/hubo-logo.png";
 
 interface Idea {
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [activeTasks, setActiveTasks] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const permissions = usePermissions();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -193,13 +195,15 @@ export default function Dashboard() {
       <main className="flex-1 container mx-auto p-4 space-y-4 pb-64">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-foreground">Project Board</h2>
-          <Button
-            onClick={handleAddIdea}
-            className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add to Inbox
-          </Button>
+          {permissions.canCreateIdea && (
+            <Button
+              onClick={handleAddIdea}
+              className="bg-primary hover:bg-primary-hover text-primary-foreground font-semibold"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add to Inbox
+            </Button>
+          )}
         </div>
         
         <KanbanBoard 
