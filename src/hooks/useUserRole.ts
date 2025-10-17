@@ -81,10 +81,14 @@ export function useUserRole(userId?: string) {
 
 export function usePermissions() {
   const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const roleData = useUserRole(user?.id);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+      setAuthLoading(false);
+    });
   }, []);
 
   const canCreateIdea = roleData.role && ['system_admin', 'project_owner', 'team_member'].includes(roleData.role);
@@ -106,8 +110,11 @@ export function usePermissions() {
   const isTeamMember = roleData.role === 'team_member';
   const isManagement = roleData.role === 'management';
 
+  const loading = authLoading || roleData.isLoading;
+
   return {
     ...roleData,
+    isLoading: loading,
     canCreateIdea,
     canDeleteIdea,
     canArchiveIdea,
