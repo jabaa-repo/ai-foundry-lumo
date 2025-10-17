@@ -58,7 +58,26 @@ serve(async (req: Request) => {
       throw new Error("You cannot delete your own account");
     }
 
-    // Delete the user using admin API (this will cascade delete profile and roles)
+    // Clean up dependent references to avoid FK violations
+    // 1) Unassign tasks assigned to this user
+    const { error: tasksUnassignError } = await supabaseAdmin
+      .from('tasks')
+      .update({ assigned_to: null })
+      .eq('assigned_to', userId);
+    if (tasksUnassignError) {
+      console.error('Failed to unassign tasks:', tasksUnassignError);
+    }
+
+    // 2) Remove task responsible assignments
+    const { error: respDeleteError } = await supabaseAdmin
+      .from('task_responsible_users')
+      .delete()
+      .eq('user_id', userId);
+    if (respDeleteError) {
+      console.error('Failed to delete task responsible entries:', respDeleteError);
+    }
+
+    // 3) Now delete the user using admin API (profiles/user_roles will cascade)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteError) {
