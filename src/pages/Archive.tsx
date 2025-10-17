@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Archive as ArchiveIcon, RotateCcw } from "lucide-react";
+import { ArrowLeft, Archive as ArchiveIcon, RotateCcw, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -53,6 +53,7 @@ export default function Archive() {
   const [ownerProfiles, setOwnerProfiles] = useState<Record<string, string>>({});
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -127,6 +128,37 @@ export default function Archive() {
       });
 
       setShowRestoreDialog(false);
+      setShowProjectDialog(false);
+      fetchArchivedProjects();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!selectedProject) return;
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', selectedProject.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Project deleted permanently",
+      });
+
+      setShowDeleteDialog(false);
       setShowProjectDialog(false);
       fetchArchivedProjects();
     } catch (error: any) {
@@ -266,6 +298,13 @@ export default function Archive() {
               Close
             </Button>
             <Button
+              variant="destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Permanently
+            </Button>
+            <Button
               onClick={() => setShowRestoreDialog(true)}
               className="bg-primary hover:bg-primary/90"
             >
@@ -289,6 +328,28 @@ export default function Archive() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleRestoreProject} disabled={loading}>
               {loading ? "Restoring..." : "Restore"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project Permanently</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this project? This action cannot be undone and will also delete all associated tasks.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteProject} 
+              disabled={loading}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {loading ? "Deleting..." : "Delete Permanently"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
