@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut, Plus, Users } from "lucide-react";
 import KanbanBoard from "@/components/KanbanBoard";
 import AIChatZone from "@/components/AIChatZone";
 import IdeaDialog from "@/components/IdeaDialog";
@@ -36,7 +35,6 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [showIdeaDialog, setShowIdeaDialog] = useState(false);
   const [showProjectDialog, setShowProjectDialog] = useState(false);
-  const [activeTasks, setActiveTasks] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
   const permissions = usePermissions();
@@ -47,7 +45,6 @@ export default function Dashboard() {
         setUser(session.user);
         fetchIdeas();
         fetchProjects();
-        fetchActiveTasks();
       } else {
         navigate("/auth");
       }
@@ -132,15 +129,6 @@ export default function Dashboard() {
     }
   };
 
-  const fetchActiveTasks = async () => {
-    const { count } = await supabase
-      .from('tasks')
-      .select('*', { count: 'exact', head: true })
-      .neq('status', 'done');
-
-    setActiveTasks(count || 0);
-  };
-
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -175,9 +163,17 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-primary text-primary font-semibold">
-              Active Tasks: {activeTasks}
-            </Badge>
+            {(permissions.isSystemAdmin || permissions.isProjectOwner) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/users")}
+                className="border-primary text-primary hover:bg-primary hover:text-primary-foreground font-semibold"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Manage Users
+              </Button>
+            )}
             <MainMenu />
             <Button
               variant="ghost"
