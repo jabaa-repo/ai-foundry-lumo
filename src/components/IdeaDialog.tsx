@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Rocket, Sparkles, X, Trash2, Archive } from "lucide-react";
+import { Loader2, Rocket, Sparkles, X, Trash2, Archive, Mic, MicOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import ConvertToProjectDialog from "./ConvertToProjectDialog";
+import { useRef } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,6 +58,10 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
   const [newDepartment, setNewDepartment] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -69,7 +74,11 @@ export default function IdeaDialog({ idea, open, onOpenChange, onSuccess }: Idea
       setDescription("");
       setDepartments([]);
     }
-  }, [idea]);
+    // Reset recording state when dialog closes
+    if (!open && isRecording) {
+      stopRecording();
+    }
+  }, [idea, open]);
 
   const addDepartment = (dept: string) => {
     if (dept && !departments.includes(dept)) {
@@ -214,6 +223,120 @@ DESCRIPTION: [improved description]`
       });
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm'
+      });
+      
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await processAudio(audioBlob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start();
+      setIsRecording(true);
+      
+      toast({
+        title: "Recording Started",
+        description: "Speak your idea...",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not access microphone. Please check permissions.",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    setIsProcessing(true);
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      reader.onloadend = async () => {
+        const base64Audio = reader.result?.toString().split(',')[1];
+        
+        if (!base64Audio) {
+          throw new Error("Failed to convert audio");
+        }
+
+        // Send to speech-to-text edge function
+        const { data: transcriptData, error: transcriptError } = await supabase.functions.invoke('speech-to-text', {
+          body: { audio: base64Audio }
+        });
+
+        if (transcriptError) throw transcriptError;
+
+        const transcribedText = transcriptData.text;
+
+        // Generate idea using AI
+        const { data, error } = await supabase.functions.invoke('lumo-chat', {
+          body: { 
+            message: `Based on the following brainstorming notes, create a well-structured idea:
+
+${transcribedText}
+
+Please provide:
+1. A clear, concise title (max 10 words)
+2. A detailed description (2-3 sentences that explain the idea, its purpose, and potential impact)
+
+Format your response as:
+TITLE: [title here]
+DESCRIPTION: [description here]`
+          }
+        });
+
+        if (error) throw error;
+
+        const response = data.response;
+        
+        // Parse the AI response
+        const titleMatch = response.match(/TITLE:\s*(.+?)(?=\n|DESCRIPTION:|$)/s);
+        const descMatch = response.match(/DESCRIPTION:\s*(.+?)$/s);
+        
+        if (titleMatch && descMatch) {
+          setTitle(titleMatch[1].trim());
+          setDescription(descMatch[1].trim());
+          
+          toast({
+            title: "Idea Generated",
+            description: "Your spoken idea has been converted to text. You can edit it before saving.",
+          });
+        }
+      };
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to process audio",
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -367,19 +490,46 @@ DESCRIPTION: [improved description]`
             <DialogTitle className="text-foreground">
               {idea ? "Edit Idea" : "Add New Idea"}
             </DialogTitle>
-            {idea && !(idea as any).is_project && (
-              <Button
-                type="button"
-                variant="default"
-                onClick={() => setShowConvertDialog(true)}
-                className="bg-primary hover:bg-primary-hover"
-                size="sm"
-              >
-                <Rocket className="mr-2 h-4 w-4" />
-                Move to Project
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {!idea && (
+                <Button
+                  type="button"
+                  variant={isRecording ? "destructive" : "outline"}
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isProcessing}
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isRecording ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              {idea && !(idea as any).is_project && (
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => setShowConvertDialog(true)}
+                  className="bg-primary hover:bg-primary-hover"
+                  size="sm"
+                >
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Move to Project
+                </Button>
+              )}
+            </div>
           </div>
+          {!idea && (isRecording || isProcessing) && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {isRecording
+                ? "🎤 Recording... Click the mic button to stop"
+                : "⚡ Processing your idea..."}
+            </p>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="space-y-4 overflow-y-auto pr-2 flex-1">
