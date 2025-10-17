@@ -24,6 +24,7 @@ interface Task {
   due_date?: string;
   start_date?: string;
   assigned_to?: string;
+  accountable_id?: string;
   responsible_role?: string;
   accountable_role?: string;
   project_id?: string;
@@ -698,13 +699,13 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
     }
 
     const updates: any = {
-      assigned_to: accountableUser,
+      accountable_id: accountableUser,
       start_date: new Date(startDate).toISOString(),
       due_date: new Date(dueDate).toISOString(),
     };
 
     // Update status to 'in_progress' if accountable person was just assigned
-    if (originalTask?.assigned_to !== accountableUser) {
+    if (originalTask?.accountable_id !== accountableUser) {
       updates.status = 'in_progress';
     }
 
@@ -740,7 +741,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       return;
     }
 
-    if (originalTask?.assigned_to !== accountableUser) {
+    if (originalTask?.accountable_id !== accountableUser) {
       logActivity("assigned_accountable", accountableUser);
     }
     
