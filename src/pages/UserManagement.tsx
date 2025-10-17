@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Loader2, Mail, Trash2, Pencil } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Trash2, Pencil, Copy, CheckCircle } from 'lucide-react';
 import type { AppRole, TeamType, TeamPosition } from '@/hooks/useUserRole';
 import AIRoleSelector, { AI_FOUNDRY_ROLES } from '@/components/AIRoleSelector';
 
