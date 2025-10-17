@@ -163,7 +163,7 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-4">
-            {(permissions.isSystemAdmin || permissions.isProjectOwner) && (
+            {(permissions.canManageUsers || permissions.canCreateUsers) && !permissions.isLoading && (
               <Button
                 variant="outline"
                 size="sm"
