@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Search, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ProjectTasksTableModal from "@/components/ProjectTasksTableModal";
-import ProjectDialog from "@/components/ProjectDialog";
+import ProjectDetailsModal from "@/components/ProjectDetailsModal";
 import { format } from "date-fns";
 
 interface Project {
@@ -502,14 +502,10 @@ export default function ProjectsLog() {
             projectId={selectedProject.id}
             projectTitle={selectedProject.title}
           />
-          <ProjectDialog
+          <ProjectDetailsModal
             project={selectedProject}
             open={projectDialogOpen}
             onOpenChange={setProjectDialogOpen}
-            onProjectDeleted={() => {
-              setSelectedProject(null);
-              fetchProjectsAndStats();
-            }}
           />
         </>
       )}
