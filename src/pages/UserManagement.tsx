@@ -18,6 +18,7 @@ import AIRoleSelector, { AI_FOUNDRY_ROLES } from '@/components/AIRoleSelector';
 interface UserProfile {
   id: string;
   display_name: string | null;
+  email: string | null;
   avatar_url: string | null;
   team: TeamType | null;
   position: TeamPosition | null;
@@ -59,7 +60,7 @@ export default function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, display_name, avatar_url, team, position')
+        .select('id, display_name, email, avatar_url, team, position')
         .order('display_name');
 
       if (profilesError) throw profilesError;
@@ -282,17 +283,21 @@ export default function UserManagement() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Title</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Position</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Team</TableHead>
+                <TableHead>Access Role</TableHead>
                 {permissions.isSystemAdmin && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.map((user) => (
                 <TableRow key={user.id}>
+                  <TableCell>{getPositionLabel(user.position, user.user_roles[0]?.role)}</TableCell>
                   <TableCell className="font-medium">{user.display_name || 'Unknown'}</TableCell>
+                  <TableCell className="text-muted-foreground">{user.email || 'No email'}</TableCell>
+                  <TableCell>{getTeamFromPosition(user.position, user.user_roles[0]?.role)}</TableCell>
                   <TableCell>
                     {user.user_roles.map((ur, index) => (
                       <Badge key={index} className={`${getRoleColor(ur.role)} text-white mr-2`}>
@@ -300,8 +305,6 @@ export default function UserManagement() {
                       </Badge>
                     ))}
                   </TableCell>
-                  <TableCell>{getPositionLabel(user.position, user.user_roles[0]?.role)}</TableCell>
-                  <TableCell>{getTeamFromPosition(user.position, user.user_roles[0]?.role)}</TableCell>
                   {permissions.isSystemAdmin && (
                     <TableCell className="text-right">
                       <Button
