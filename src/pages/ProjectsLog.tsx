@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { ArrowLeft, Search, X, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import ProjectTasksTableModal from "@/components/ProjectTasksTableModal";
 
 interface Project {
   id: string;
@@ -53,6 +54,7 @@ export default function ProjectsLog() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [tasksModalOpen, setTasksModalOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -295,6 +297,23 @@ export default function ProjectsLog() {
                     </Button>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => navigate(`/dashboard?project=${selectedProject.id}`)}
+                      >
+                        Open Project
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => setTasksModalOpen(true)}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Tasks
+                      </Button>
+                    </div>
                     <div>
                       <p className="text-sm font-semibold text-muted-foreground">Project ID</p>
                       <Badge variant="outline" className="font-mono text-xs mt-1">
@@ -449,6 +468,15 @@ export default function ProjectsLog() {
           </div>
         )}
       </main>
+
+      {selectedProject && (
+        <ProjectTasksTableModal
+          open={tasksModalOpen}
+          onOpenChange={setTasksModalOpen}
+          projectId={selectedProject.id}
+          projectTitle={selectedProject.title}
+        />
+      )}
     </div>
   );
 }
