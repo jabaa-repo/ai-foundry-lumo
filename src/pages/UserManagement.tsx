@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Loader2, Mail, Trash2, Pencil, Copy, CheckCircle } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Trash2, Pencil, Copy, CheckCircle, ArrowLeft } from 'lucide-react';
 import type { AppRole, TeamType, TeamPosition } from '@/hooks/useUserRole';
 import AIRoleSelector, { AI_FOUNDRY_ROLES } from '@/components/AIRoleSelector';
 
@@ -390,8 +390,16 @@ export default function UserManagement() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex items-center gap-4 mb-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate('/')}
+          className="rounded-full"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold">User Management</h1>
           <p className="text-muted-foreground">Manage users, roles, and permissions</p>
         </div>

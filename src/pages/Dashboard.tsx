@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus, Users } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import KanbanBoard from "@/components/KanbanBoard";
 import AIChatZone from "@/components/AIChatZone";
 import IdeaDialog from "@/components/IdeaDialog";
@@ -11,6 +11,7 @@ import ProjectDialog from "@/components/ProjectDialog";
 import MainMenu from "@/components/MainMenu";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/useUserRole";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
 import huboLogo from "@/assets/hubo-logo.png";
 
 interface Idea {
@@ -129,11 +130,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/auth");
-  };
-
   const handleAddIdea = () => {
     setSelectedIdea(null);
     setShowIdeaDialog(true);
@@ -175,14 +171,7 @@ export default function Dashboard() {
               </Button>
             )}
             <MainMenu />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSignOut}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <UserProfileMenu />
           </div>
         </div>
       </header>
