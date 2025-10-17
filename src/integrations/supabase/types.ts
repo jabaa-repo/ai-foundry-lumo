@@ -631,6 +631,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_idea_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_project_number: {
         Args: { ai_tag: string }
         Returns: string

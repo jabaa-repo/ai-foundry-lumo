@@ -32,8 +32,8 @@ export default function MainMenu() {
   const menuItems = [
     {
       icon: Archive,
-      title: "View Archive",
-      description: "Access archived projects",
+      title: "Archived Projects",
+      description: "View and restore archived projects",
       onClick: () => {
         navigate("/archive");
         setOpen(false);
@@ -42,7 +42,7 @@ export default function MainMenu() {
     {
       icon: Archive,
       title: "Archived Ideas",
-      description: "View ideas moved to archive",
+      description: "View and restore archived ideas",
       onClick: () => {
         navigate("/archived-ideas");
         setOpen(false);
