@@ -93,10 +93,21 @@ export default function UserManagement() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUser.email || !newUser.display_name || !newUser.position) {
+    const requiresPosition = !['system_admin', 'project_owner', 'management'].includes(newUser.role);
+    
+    if (!newUser.email || !newUser.display_name) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields.',
+        description: 'Please fill in email and name.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requiresPosition && !newUser.position) {
+      toast({
+        title: 'Validation Error',
+        description: 'Team members must have a position assigned.',
         variant: 'destructive',
       });
       return;
@@ -178,19 +189,31 @@ export default function UserManagement() {
     return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  const getPositionLabel = (position: TeamPosition | null) => {
+  const getPositionLabel = (position: TeamPosition | null, role: AppRole | undefined) => {
+    // System admin, project owner, and management don't have positions
+    if (role && ['system_admin', 'project_owner', 'management'].includes(role)) {
+      return '-';
+    }
+    
     if (!position) return 'Not assigned';
-    const role = AI_FOUNDRY_ROLES.find(r => r.id === position);
-    return role?.name || position;
+    const roleInfo = AI_FOUNDRY_ROLES.find(r => r.id === position);
+    return roleInfo?.name || position;
   };
 
-  const getTeamFromPosition = (position: TeamPosition): TeamType => {
+  const getTeamFromPosition = (position: TeamPosition | null, role: AppRole | undefined): string => {
+    // System admin, project owner, and management don't have teams
+    if (role && ['system_admin', 'project_owner', 'management'].includes(role)) {
+      return '-';
+    }
+    
+    if (!position) return 'Not assigned';
+    
     if (['business_analyst', 'ai_process_reengineer', 'ai_innovation_executive'].includes(position)) {
-      return 'business_innovation';
+      return 'Business Innovation';
     } else if (['ai_system_architect', 'ai_system_engineer', 'ai_data_engineer'].includes(position)) {
-      return 'engineering';
+      return 'Engineering';
     } else {
-      return 'adoption_outcomes';
+      return 'Adoption & Outcomes';
     }
   };
 
@@ -244,16 +267,8 @@ export default function UserManagement() {
                       </Badge>
                     ))}
                   </TableCell>
-                  <TableCell>{getPositionLabel(user.position)}</TableCell>
-                  <TableCell>
-                    {user.team ? (
-                      <Badge variant="outline">
-                        {user.team.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                      </Badge>
-                    ) : (
-                      'Not assigned'
-                    )}
-                  </TableCell>
+                  <TableCell>{getPositionLabel(user.position, user.user_roles[0]?.role)}</TableCell>
+                  <TableCell>{getTeamFromPosition(user.position, user.user_roles[0]?.role)}</TableCell>
                   {permissions.isSystemAdmin && (
                     <TableCell className="text-right">
                       <Button
@@ -317,10 +332,12 @@ export default function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <AIRoleSelector
-              value={newUser.position}
-              onValueChange={(value) => setNewUser({ ...newUser, position: value as TeamPosition })}
-            />
+            {!['system_admin', 'project_owner', 'management'].includes(newUser.role) && (
+              <AIRoleSelector
+                value={newUser.position}
+                onValueChange={(value) => setNewUser({ ...newUser, position: value as TeamPosition })}
+              />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
