@@ -32,7 +32,7 @@ export function useUserRole(userId?: string) {
   useEffect(() => {
     const fetchUserRole = async () => {
       if (!userId) {
-        setRoleData({ role: null, team: null, position: null, isLoading: false });
+        setRoleData({ role: null, team: null, position: null, isLoading: true });
         return;
       }
 
