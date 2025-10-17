@@ -59,7 +59,14 @@ serve(async (req: Request) => {
     }
 
     // Clean up dependent references to avoid FK violations
-    // 1) Unassign tasks assigned to this user
+    // 1) Check tasks assigned count
+    const { count: beforeCount, error: beforeCountErr } = await supabaseAdmin
+      .from('tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_to', userId);
+    if (beforeCountErr) console.error('Count check (before) failed:', beforeCountErr);
+
+    // 2) Unassign tasks assigned to this user
     const { error: tasksUnassignError } = await supabaseAdmin
       .from('tasks')
       .update({ assigned_to: null })
@@ -68,7 +75,14 @@ serve(async (req: Request) => {
       console.error('Failed to unassign tasks:', tasksUnassignError);
     }
 
-    // 2) Remove task responsible assignments
+    // 3) Also clear other potential user references to avoid future FK blocks
+    await supabaseAdmin.from('tasks').update({ owner_id: null }).eq('owner_id', userId);
+    await supabaseAdmin.from('tasks').update({ accountable_id: null }).eq('accountable_id', userId);
+    await supabaseAdmin.from('projects').update({ owner_id: null }).eq('owner_id', userId);
+    await supabaseAdmin.from('projects').update({ responsible_id: null }).eq('responsible_id', userId);
+    await supabaseAdmin.from('projects').update({ accountable_id: null }).eq('accountable_id', userId);
+
+    // 4) Remove task responsible assignments
     const { error: respDeleteError } = await supabaseAdmin
       .from('task_responsible_users')
       .delete()
@@ -77,7 +91,19 @@ serve(async (req: Request) => {
       console.error('Failed to delete task responsible entries:', respDeleteError);
     }
 
-    // 3) Now delete the user using admin API (profiles/user_roles will cascade)
+    // 5) Verify no tasks still assigned to the user
+    const { count: afterCount, error: afterCountErr } = await supabaseAdmin
+      .from('tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('assigned_to', userId);
+    if (afterCountErr) console.error('Count check (after) failed:', afterCountErr);
+    console.log('Assigned tasks count before/after cleanup:', beforeCount, afterCount);
+
+    if ((afterCount ?? 0) > 0) {
+      throw new Error(`Cannot delete user: ${afterCount} tasks still assigned`);
+    }
+
+    // 6) Now delete the user using admin API (profiles/user_roles will cascade)
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
     if (deleteError) {
