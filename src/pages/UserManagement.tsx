@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, Loader2, Mail, Trash2 } from 'lucide-react';
+import { UserPlus, Loader2, Mail, Trash2, Pencil } from 'lucide-react';
 import type { AppRole, TeamType, TeamPosition } from '@/hooks/useUserRole';
 import AIRoleSelector, { AI_FOUNDRY_ROLES } from '@/components/AIRoleSelector';
 
@@ -32,10 +32,19 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
   const [newUser, setNewUser] = useState({
     email: '',
+    display_name: '',
+    role: 'team_member' as AppRole,
+    position: '' as TeamPosition | '',
+  });
+
+  const [editUser, setEditUser] = useState({
     display_name: '',
     role: 'team_member' as AppRole,
     position: '' as TeamPosition | '',
@@ -209,6 +218,99 @@ export default function UserManagement() {
     }
   };
 
+  const handleEditUser = (user: UserProfile) => {
+    setSelectedUser(user);
+    setEditUser({
+      display_name: user.display_name || '',
+      role: user.user_roles[0]?.role || 'team_member',
+      position: user.position || '',
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!selectedUser) return;
+
+    const requiresPosition = !['system_admin', 'project_owner', 'management'].includes(editUser.role);
+    
+    if (!editUser.display_name) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in the name.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requiresPosition && !editUser.position) {
+      toast({
+        title: 'Validation Error',
+        description: 'Team members must have a position assigned.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      // Determine team from position
+      const team = editUser.position ? getTeamTypeFromPosition(editUser.position as TeamPosition) : null;
+
+      // Update profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          display_name: editUser.display_name,
+          team: team,
+          position: editUser.position || null,
+        })
+        .eq('id', selectedUser.id);
+
+      if (profileError) throw profileError;
+
+      // Update role if changed
+      const currentRole = selectedUser.user_roles[0]?.role;
+      if (currentRole !== editUser.role) {
+        // Delete old role
+        if (currentRole) {
+          await supabase
+            .from('user_roles')
+            .delete()
+            .eq('user_id', selectedUser.id)
+            .eq('role', currentRole);
+        }
+
+        // Insert new role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: selectedUser.id,
+            role: editUser.role,
+          });
+
+        if (roleError) throw roleError;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'User updated successfully.',
+      });
+
+      setShowEditDialog(false);
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating user:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update user.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   const getRoleColor = (role: AppRole) => {
     switch (role) {
       case 'system_admin': return 'bg-red-500';
@@ -307,13 +409,22 @@ export default function UserManagement() {
                   </TableCell>
                   {permissions.isSystemAdmin && (
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditUser(user)}
+                        >
+                          <Pencil className="h-4 w-4 text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
@@ -390,6 +501,77 @@ export default function UserManagement() {
                   <Mail className="mr-2 h-4 w-4" />
                   Send Invitation
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information, role, and team assignment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input
+                id="edit-name"
+                placeholder="Enter full name"
+                value={editUser.display_name}
+                onChange={(e) => setEditUser({ ...editUser, display_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={selectedUser?.email || ''}
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">Access Role</Label>
+              <Select
+                value={editUser.role}
+                onValueChange={(value) => setEditUser({ ...editUser, role: value as AppRole })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="system_admin">System Admin</SelectItem>
+                  <SelectItem value="project_owner">Project Owner</SelectItem>
+                  <SelectItem value="team_member">Team Member</SelectItem>
+                  <SelectItem value="management">Management</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {!['system_admin', 'project_owner', 'management'].includes(editUser.role) && (
+              <AIRoleSelector
+                value={editUser.position}
+                onValueChange={(value) => setEditUser({ ...editUser, position: value as TeamPosition })}
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateUser} disabled={isUpdating}>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update User'
               )}
             </Button>
           </DialogFooter>
