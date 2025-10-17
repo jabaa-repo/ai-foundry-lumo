@@ -134,11 +134,11 @@ export function TaskDetailDialog({ task, open, onOpenChange, onTaskUpdate }: Tas
       fetchTaskAttachments();
       fetchResponsibleUsers();
       fetchProjectInfo();
-      setAccountableUser(task.assigned_to || "");
+      setAccountableUser(task.accountable_id || "");
       
       // Fetch accountable user profile
-      if (task.assigned_to) {
-        fetchAccountableUserProfile(task.assigned_to);
+      if (task.accountable_id) {
+        fetchAccountableUserProfile(task.accountable_id);
       } else {
         setAccountableUserProfile(null);
       }
