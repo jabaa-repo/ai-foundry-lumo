@@ -202,27 +202,32 @@ export default function UserManagement() {
 
     setIsDeleting(true);
     try {
-      // Delete user role
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userToDelete.id);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id },
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
 
-      if (roleError) throw roleError;
+      if (response.error) {
+        throw response.error;
+      }
 
       toast({
         title: 'Success',
-        description: 'User role removed successfully.',
+        description: 'User deleted successfully.',
       });
 
       setShowDeleteDialog(false);
       setUserToDelete(null);
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete user.',
+        description: error.message || 'Failed to delete user.',
         variant: 'destructive',
       });
     } finally {
@@ -598,10 +603,10 @@ export default function UserManagement() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete User Permanently?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove <strong>{userToDelete?.display_name}</strong>'s role and access to the system. 
-              This action cannot be undone.
+              This will permanently delete <strong>{userToDelete?.display_name}</strong> ({userToDelete?.email}) from the system. 
+              All their data, roles, and access will be removed. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -617,7 +622,7 @@ export default function UserManagement() {
                   Deleting...
                 </>
               ) : (
-                'Delete User'
+                'Delete Permanently'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
