@@ -77,7 +77,7 @@ export default function UserManagement() {
       // Fetch all profiles
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, display_name, email, avatar_url, team, position')
+        .select('id, display_name, avatar_url, team, position')
         .order('display_name');
 
       if (profilesError) throw profilesError;
@@ -89,13 +89,24 @@ export default function UserManagement() {
 
       if (rolesError) throw rolesError;
 
+      // Fetch auth users to get emails
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) throw authError;
+
+      const authUsers = authData?.users || [];
+
       // Combine the data
-      const usersWithRoles = (profiles || []).map(profile => ({
-        ...profile,
-        user_roles: (roles || [])
-          .filter(r => r.user_id === profile.id)
-          .map(r => ({ role: r.role as AppRole }))
-      }));
+      const usersWithRoles = (profiles || []).map(profile => {
+        const authUser = authUsers.find(u => u.id === profile.id);
+        return {
+          ...profile,
+          email: authUser?.email || null,
+          user_roles: (roles || [])
+            .filter(r => r.user_id === profile.id)
+            .map(r => ({ role: r.role as AppRole }))
+        };
+      });
 
       setUsers(usersWithRoles);
     } catch (error) {

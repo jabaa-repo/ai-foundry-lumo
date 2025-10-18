@@ -92,11 +92,48 @@ export function UserProfileDialog({
       return;
     }
 
-    if (newPassword.length < 6) {
+    // Validate password strength
+    if (newPassword.length < 12) {
       toast({
         variant: "destructive",
         title: "Password too short",
-        description: "Password must be at least 6 characters long.",
+        description: "Password must be at least 12 characters long",
+      });
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Weak password",
+        description: "Password must contain at least one uppercase letter",
+      });
+      return;
+    }
+
+    if (!/[a-z]/.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Weak password",
+        description: "Password must contain at least one lowercase letter",
+      });
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Weak password",
+        description: "Password must contain at least one number",
+      });
+      return;
+    }
+
+    if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      toast({
+        variant: "destructive",
+        title: "Weak password",
+        description: "Password must contain at least one special character",
       });
       return;
     }
@@ -226,7 +263,7 @@ export function UserProfileDialog({
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Enter new password"
-                  minLength={6}
+                  minLength={12}
                 />
               </div>
               <div className="space-y-2">
@@ -237,7 +274,7 @@ export function UserProfileDialog({
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  minLength={6}
+                  minLength={12}
                 />
               </div>
               <div className="flex gap-2">

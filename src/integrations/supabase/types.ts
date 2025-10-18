@@ -288,7 +288,6 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
-          email: string | null
           id: string
           needs_password_change: boolean | null
           position: Database["public"]["Enums"]["team_position"] | null
@@ -299,7 +298,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           id: string
           needs_password_change?: boolean | null
           position?: Database["public"]["Enums"]["team_position"] | null
@@ -310,7 +308,6 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
-          email?: string | null
           id?: string
           needs_password_change?: boolean | null
           position?: Database["public"]["Enums"]["team_position"] | null
