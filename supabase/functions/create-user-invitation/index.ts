@@ -110,6 +110,18 @@ Deno.serve(async (req: Request) => {
     });
 
     if (createError) {
+      // Provide user-friendly error messages
+      if (createError.message?.includes("already registered") || createError.message?.includes("already exists")) {
+        return new Response(
+          JSON.stringify({
+            error: `A user with email "${email}" already exists in the system.`,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 409, // Conflict status code
+          },
+        );
+      }
       throw createError;
     }
 
@@ -124,7 +136,12 @@ Deno.serve(async (req: Request) => {
     });
 
     if (roleError) {
-      throw roleError;
+      // Provide context about what failed
+      if (roleError.code === "23505") {
+        // Unique violation
+        throw new Error(`User role assignment failed: User already has this role assigned.`);
+      }
+      throw new Error(`Failed to assign role: ${roleError.message}`);
     }
 
     // Update profile with team and position if provided
@@ -139,7 +156,7 @@ Deno.serve(async (req: Request) => {
 
       if (profileError) {
         console.error("Profile update error:", profileError);
-        throw profileError; // Throw error so user knows something went wrong
+        throw new Error(`Failed to update user profile with team/position: ${profileError.message}`);
       }
     }
 
@@ -167,9 +184,26 @@ Deno.serve(async (req: Request) => {
     );
   } catch (error: any) {
     console.error("Error in create-user-invitation:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+
+    // Determine appropriate status code
+    let statusCode = 400;
+    let errorMessage = error.message || "An unexpected error occurred";
+
+    // Handle specific error cases
+    if (error.message?.includes("Unauthorized") || error.message?.includes("Insufficient permissions")) {
+      statusCode = 403;
+      errorMessage = "You don't have permission to create users";
+    } else if (error.message?.includes("already exists")) {
+      statusCode = 409;
+    } else if (error.message?.includes("Invalid")) {
+      statusCode = 400;
+    } else if (!error.message) {
+      errorMessage = "Failed to create user. Please try again or contact support.";
+    }
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
+      status: statusCode,
     });
   }
 });
