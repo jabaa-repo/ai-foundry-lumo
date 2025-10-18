@@ -5,3 +5,15 @@ verify_jwt = true
 
 [functions.generate-tasks]
 verify_jwt = true
+
+[functions.create-user-invitation]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = true
+
+[functions.generate-backlog-tasks]
+verify_jwt = true
+
+[functions.speech-to-text]
+verify_jwt = true
