@@ -74,39 +74,43 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      // Fetch all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, display_name, avatar_url, team, position')
-        .order('display_name');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to view users.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-      if (profilesError) throw profilesError;
+      // Call edge function to get users with emails
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-users-with-emails`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
 
-      // Fetch roles for all users
-      const { data: roles, error: rolesError } = await supabase
-        .from('user_roles')
-        .select('user_id, role');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch users');
+      }
 
-      if (rolesError) throw rolesError;
+      const { users: usersData } = await response.json();
 
-      // Fetch auth users to get emails
-      const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) throw authError;
-
-      const authUsers = authData?.users || [];
-
-      // Combine the data
-      const usersWithRoles = (profiles || []).map(profile => {
-        const authUser = authUsers.find(u => u.id === profile.id);
-        return {
-          ...profile,
-          email: authUser?.email || null,
-          user_roles: (roles || [])
-            .filter(r => r.user_id === profile.id)
-            .map(r => ({ role: r.role as AppRole }))
-        };
-      });
+      // Map the data to UserProfile format
+      const usersWithRoles: UserProfile[] = usersData.map((user: any) => ({
+        id: user.id,
+        display_name: user.display_name,
+        email: user.email,
+        avatar_url: user.avatar_url,
+        team: user.team,
+        position: user.position,
+        user_roles: user.roles.map((role: string) => ({ role: role as AppRole })),
+      }));
 
       setUsers(usersWithRoles);
     } catch (error) {
