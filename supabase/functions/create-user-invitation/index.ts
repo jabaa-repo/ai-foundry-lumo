@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,16 @@ interface CreateUserRequest {
   position?: string;
   team?: string;
 }
+
+const createUserSchema = z.object({
+  email: z.string().trim().email("Invalid email format").max(255, "Email too long"),
+  display_name: z.string().trim().min(1, "Display name required").max(100, "Display name too long"),
+  role: z.enum(['system_admin', 'project_owner', 'team_member', 'management'], {
+    errorMap: () => ({ message: "Invalid role" })
+  }),
+  position: z.string().trim().max(100).optional(),
+  team: z.string().trim().max(100).optional()
+});
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -55,10 +66,30 @@ serve(async (req: Request) => {
       throw new Error("Insufficient permissions");
     }
 
-    const { email, display_name, role, position, team }: CreateUserRequest = await req.json();
+    const requestBody = await req.json();
+    
+    // Validate input
+    const validationResult = createUserSchema.safeParse(requestBody);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid input data", 
+          details: validationResult.error.errors 
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 400,
+        }
+      );
+    }
 
-    // Generate a strong temporary password
-    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!${Date.now().toString().slice(-4)}`;
+    const { email, display_name, role, position, team } = validationResult.data;
+
+    // Generate a strong temporary password (12+ characters with complexity)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const tempPassword = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(x => chars[x % chars.length])
+      .join('');
 
     // Create the user with admin API
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
